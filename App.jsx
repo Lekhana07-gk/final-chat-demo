@@ -70,15 +70,16 @@ const FullFeatureChatApp = () => {
   };
 
   return (
-  <div style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', minHeight: '100vh', width: '100vw' }}>
+    // 1. THIS is the new blue background wrapper that covers the whole screen
+    <div style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', minHeight: '100vh', width: '100vw', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
       
-      {/* The rest of your chat app code stays exactly the same inside here */}
-
-  </div>
-);
-      
+      {/* 2. Your actual chat box stays exactly as you wrote it! */}
       {/* Formal Desktop Frame */}
-      <div className="w-full max-w-2xl h-[90vh] bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.08)] border border-slate-200 flex flex-col relative overflow-hidden">
+      <div className="w-full max-w-2xl h-[90vh] bg-white rounded-lg shadow-xl overflow-hidden flex flex-col">
+        
+        {/* HEADER */}
+        <div className="bg-white px-6 py-4 border-b border-slate-200">
+           {/* ... the rest of your header, chat body, and footer code ... */}
         
         {/* HEADER */}
         <div className="bg-white px-6 py-4 border-b border-slate-200 flex items-center justify-between z-20">
@@ -251,7 +252,7 @@ const FullFeatureChatApp = () => {
 
       </div>
     </div>
-  );
+    );
 };
 
 export default FullFeatureChatApp;
