@@ -2,10 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 body {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  background-color: #d1d7db !important;
+  background-image: linear-gradient(to bottom, #dadfdc 0%, #d1d7db 100%) !important;
   background-attachment: fixed !important;
   margin: 0;
   padding: 0;
-  height: 100vh;
+  min-height: 100vh;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
