@@ -3,7 +3,7 @@ import { io } from 'socket.io-client';
 import { Send, MapPin, CreditCard, Smile, Paperclip, Video, Phone, CheckCheck, Image as ImageIcon } from 'lucide-react';
 
 // Connect to your local server
-const socket = io('http://localhost:3000');
+const socket = io('https://final-chat-demo.onrender.com');
 
 const FullFeatureChatApp = () => {
   const [inputText, setInputText] = useState('');
