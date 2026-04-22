@@ -70,7 +70,12 @@ const FullFeatureChatApp = () => {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-slate-100 font-sans text-slate-800 p-4">
+  <div style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', minHeight: '100vh', width: '100vw' }}>
+      
+      {/* The rest of your chat app code stays exactly the same inside here */}
+
+  </div>
+);
       
       {/* Formal Desktop Frame */}
       <div className="w-full max-w-2xl h-[90vh] bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.08)] border border-slate-200 flex flex-col relative overflow-hidden">
