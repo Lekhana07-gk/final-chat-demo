@@ -151,12 +151,42 @@ const FullFeatureChatApp = () => {
               {msg.sender === 'them' && <span className="text-[11px] font-bold text-slate-400 ml-2 mb-1 uppercase">{msg.senderName}</span>}
 
               {/* TEXT MESSAGE */}
+              {messages.map((msg) => (
+            <div key={msg.id} className={`flex flex-col ${msg.sender === 'me' ? 'items-end' : 'items-start'} animate-in slide-in-from-bottom-2 duration-300`}>
+              
+              {/* SENDER NAME (Shows above incoming messages) */}
+              {msg.sender === 'them' && (
+                <span className="text-[11px] font-bold text-slate-500 ml-2 mb-1 tracking-wide uppercase">{msg.senderName}</span>
+              )}
+
+              {/* MESSAGE BUBBLE (Colors Fixed!) */}
               {msg.type === 'text' && (
-                <div onClick={() => setSelectedMsgId(selectedMsgId === msg.id ? null : msg.id)} className={`px-5 py-3.5 max-w-[80%] shadow-md cursor-pointer ${msg.sender === 'me' ? 'bg-gradient-to-br from-blue-600 to-indigo-600 text-white rounded-2xl rounded-tr-none' : 'bg-white border border-slate-100 text-slate-700 rounded-2xl rounded-tl-none'}`}>
-                  <p className="text-[15px]">{msg.text}</p>
-                  <div className="flex justify-end items-center gap-1.5 mt-2 -mb-1 opacity-70"><span className="text-[10px]">{msg.time}</span></div>
+                <div 
+                  onClick={() => handleMessageClick(msg.id)}
+                  className={`px-5 py-3.5 max-w-[80%] sm:max-w-[70%] shadow-md cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98] ${
+                    msg.sender === 'me' 
+                    ? 'bg-blue-600 text-white rounded-2xl rounded-tr-none shadow-blue-500/20' 
+                    : 'bg-white border border-slate-200 text-slate-800 rounded-2xl rounded-tl-none'
+                  }`}
+                >
+                  <p className="text-[15px] leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+                  <div className="flex justify-end items-center gap-1.5 mt-2 -mb-1 opacity-80">
+                    <span className="text-[10px] font-semibold tracking-wide">{msg.time}</span>
+                    {msg.sender === 'me' && <CheckCheck size={14} className="text-blue-200" />}
+                  </div>
                 </div>
               )}
+
+              {/* CLICK TO SHOW DETAILS (Date & Time Drawer) */}
+              {selectedMsgId === msg.id && (
+                <div className="mt-2 flex items-center gap-2 text-[11px] font-semibold text-slate-600 bg-white px-4 py-2 rounded-full border border-slate-200 shadow-sm animate-in slide-in-from-top-1 duration-200">
+                  <Info size={14} className="text-blue-500" />
+                  <span>{msg.sender === 'me' ? 'Delivered' : 'Received'} on {msg.fullDate} at {msg.time}</span>
+                </div>
+              )}
+
+            </div>
+          ))}
 
               {/* STICKER MESSAGE */}
               {msg.type === 'sticker' && (
