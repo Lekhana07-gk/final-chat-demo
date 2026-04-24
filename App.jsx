@@ -14,6 +14,9 @@ const FullFeatureChatApp = () => {
   const [showMenu, setShowMenu] = useState(''); 
   const [messages, setMessages] = useState([]);
   const [selectedMsgId, setSelectedMsgId] = useState(null);
+  const handleMessageClick = (id) => {
+    setSelectedMsgId(selectedMsgId === id ? null : id);
+  };
   const [isCalling, setIsCalling] = useState(false); // Controls the simulated call screen
   
   const chatEndRef = useRef(null);
