@@ -16,7 +16,16 @@ const FullFeatureChatApp = () => {
   
   const [inputText, setInputText] = useState('');
   const [activeMenu, setActiveMenu] = useState(''); 
-  const [messages, setMessages] = useState([]);
+  // MAGIC FIX: Load messages from memory, or start empty if none exist
+  const [messages, setMessages] = useState(() => {
+    const savedMessages = localStorage.getItem('chat_history');
+    return savedMessages ? JSON.parse(savedMessages) : [];
+  });
+
+  // MAGIC FIX: Every time a message is sent or received, save it to memory
+  useEffect(() => {
+    localStorage.setItem('chat_history', JSON.stringify(messages));
+  }, [messages]);
   
   // NEW STATES FOR DEMO MAGIC
   const [showVideoCall, setShowVideoCall] = useState(false);
@@ -169,7 +178,16 @@ const FullFeatureChatApp = () => {
           </div>
           <div className="flex items-center gap-4 text-slate-500">
             <button onClick={() => setShowVideoCall(true)} className="hover:text-blue-600 transition p-2 bg-slate-100 rounded-full"><Video size={20} /></button>
-            <button onClick={() => { localStorage.removeItem('chat_user'); window.location.reload(); }} className="hover:text-red-500 transition p-2 bg-slate-100 rounded-full"><LogOut size={20} /></button>
+            <button 
+              onClick={() => { 
+                localStorage.removeItem('chat_user'); 
+                localStorage.removeItem('chat_history'); // Clears the chat on logout
+                window.location.reload(); 
+              }} 
+              className="hover:text-red-500 transition p-2 bg-slate-100 rounded-full" title="Logout"
+            >
+              <LogOut size={20} />
+            </button>
           </div>
         </div>
 
