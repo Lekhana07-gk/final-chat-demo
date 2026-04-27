@@ -2,12 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
 import { 
   Send, Smile, Paperclip, Video, CheckCheck, 
-  Image as ImageIcon, User, MapPin, CreditCard, 
+  Image as ImageIcon, User, MapPin, IndianRupee, 
   Mic, Camera, FileText, Headphones, BarChart2, 
-  IndianRupee, Sparkles, LogOut, ShieldCheck, Sticker, PhoneMissed, X
+  Sparkles, LogOut, ShieldCheck, Sticker, PhoneMissed, X 
 } from 'lucide-react';
 
-const socket = io('https://final-chat-demo.onrender.com'); 
+const socket = io('https://final-chat-server-v2.onrender.com'); 
 
 const FullFeatureChatApp = () => {
   const [username, setUsername] = useState(localStorage.getItem('chat_user') || '');
@@ -23,6 +23,15 @@ const FullFeatureChatApp = () => {
   const [showVideoCall, setShowVideoCall] = useState(false);
   const [showCameraMode, setShowCameraMode] = useState(false);
   
+  // Audio Recording States
+  const [isRecording, setIsRecording] = useState(false);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+  
+  // NETWORK & LAST SEEN STATES
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [lastActiveTime, setLastActiveTime] = useState(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+  
   const chatEndRef = useRef(null);
   const videoRef = useRef(null); 
 
@@ -35,12 +44,45 @@ const FullFeatureChatApp = () => {
     'https://cdn-icons-png.flaticon.com/512/4392/4392461.png'
   ];
 
+  // ==========================================
+  // NETWORK TRACKING EFFECT
+  // ==========================================
   useEffect(() => {
-    socket.on('receive_message', (data) => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => {
+      setIsOnline(false);
+      setLastActiveTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+    };
+
+    // Listen to physical internet connection
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    // Listen to Socket.io connection
+    socket.on('connect', handleOnline);
+    socket.on('disconnect', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+      socket.off('connect', handleOnline);
+      socket.off('disconnect', handleOffline);
+    };
+  }, []);
+
+  // ==========================================
+  // MESSAGE RECEIVING EFFECT
+  // ==========================================
+  useEffect(() => {
+    const handleReceive = (data) => {
       const incomingMsg = { ...data, sender: 'them' };
       setMessages((prev) => [...prev, incomingMsg]);
-    });
-    return () => socket.off('receive_message');
+      // Update last seen when someone sends a message
+      setLastActiveTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+    };
+    
+    socket.on('receive_message', handleReceive);
+    return () => socket.off('receive_message', handleReceive);
   }, []);
 
   useEffect(() => {
@@ -77,6 +119,7 @@ const FullFeatureChatApp = () => {
     if (e.key === 'Enter' && inputText.trim()) sendPayload('text', {}, inputText);
   };
 
+  // CAMERA LOGIC
   const openCamera = async () => {
     setActiveMenu('');
     setShowCameraMode(true);
@@ -93,6 +136,41 @@ const FullFeatureChatApp = () => {
     const stream = videoRef.current?.srcObject;
     stream?.getTracks().forEach(track => track.stop());
     setShowCameraMode(false);
+  };
+
+  // VOICE NOTE LOGIC
+  const startRecording = async () => {
+    setActiveMenu('');
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) audioChunksRef.current.push(event.data);
+      };
+
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const reader = new FileReader();
+        reader.readAsDataURL(audioBlob);
+        reader.onloadend = () => sendPayload('audio', { audioUrl: reader.result });
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+    } catch (err) {
+      alert("Microphone access denied. Please allow permissions.");
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
   };
 
   // ==========================================
@@ -124,7 +202,6 @@ const FullFeatureChatApp = () => {
   return (
     <div className="flex flex-col h-[100dvh] w-full max-w-full overflow-hidden bg-slate-50 font-sans text-slate-800 relative box-border">
       
-      {/* VIDEO CALL OVERLAY */}
       {showVideoCall && (
         <div className="absolute inset-0 z-50 bg-slate-900 flex flex-col items-center justify-center text-white w-full h-full overflow-hidden">
           <div className="w-24 h-24 bg-blue-600 rounded-full flex items-center justify-center text-4xl font-bold mb-4 animate-pulse">G</div>
@@ -134,7 +211,6 @@ const FullFeatureChatApp = () => {
         </div>
       )}
 
-      {/* WEBCAM OVERLAY */}
       {showCameraMode && (
         <div className="absolute inset-0 z-50 bg-black flex flex-col items-center justify-center p-4 w-full h-full overflow-hidden">
           <video ref={videoRef} autoPlay playsInline className="w-full max-w-2xl rounded-lg shadow-2xl mb-6 max-h-[60vh]"></video>
@@ -145,13 +221,24 @@ const FullFeatureChatApp = () => {
         </div>
       )}
 
-      {/* HEADER */}
+      {/* HEADER WITH ONLINE/OFFLINE STATUS */}
       <div className="bg-white px-3 py-3 flex items-center justify-between z-30 border-b border-slate-200 shadow-sm w-full max-w-full shrink-0 box-border">
         <div className="flex items-center gap-2 min-w-0">
           <div className="w-10 h-10 bg-gradient-to-tr from-blue-600 to-indigo-500 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-md uppercase shrink-0">{username.charAt(0)}</div>
           <div className="min-w-0 overflow-hidden">
             <h1 className="text-base font-bold text-slate-800 truncate leading-tight">Global Network</h1>
-            <p className="text-xs text-blue-600 font-semibold flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse shrink-0"></span> <span className="truncate">Online</span></p>
+            
+            {/* DYNAMIC STATUS INDICATOR */}
+            {isOnline ? (
+              <p className="text-xs text-blue-600 font-semibold flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse shrink-0"></span> <span className="truncate">Online</span>
+              </p>
+            ) : (
+              <p className="text-xs text-slate-500 font-medium flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0"></span> <span className="truncate">Last seen at {lastActiveTime}</span>
+              </p>
+            )}
+
           </div>
         </div>
         <div className="flex items-center gap-1 shrink-0 ml-2">
@@ -176,7 +263,12 @@ const FullFeatureChatApp = () => {
               {msg.type === 'text' && <div className="text-[14px] leading-relaxed whitespace-pre-wrap break-words">{msg.text}</div>}
               {msg.type === 'sticker' && <div className="-mx-1"><img src={msg.url} alt="Sticker" className="w-24 h-24 object-contain drop-shadow-md max-w-full" /></div>}
               
-              {/* POLL BUBBLE */}
+              {msg.type === 'audio' && (
+                <div className="mt-1 w-full max-w-[240px]">
+                  <audio controls src={msg.audioUrl} className="h-10 w-full" />
+                </div>
+              )}
+
               {msg.type === 'poll' && (
                 <div className="w-full min-w-[180px] max-w-full mt-1">
                   <div className="flex items-center gap-1.5 font-bold text-sm mb-2 truncate"><BarChart2 size={16} className="shrink-0"/> Day</div>
@@ -225,7 +317,6 @@ const FullFeatureChatApp = () => {
       {/* BOTTOM INPUT AREA */}
       <div className="bg-white border-t border-slate-200 p-2 relative w-full max-w-full shrink-0 box-border">
         
-        {/* MENUS */}
         {activeMenu === 'emoji' && (
           <div className="absolute bottom-16 left-2 bg-white shadow-xl border border-slate-200 rounded-xl p-3 w-[calc(100%-16px)] max-w-[260px] grid grid-cols-4 gap-3 z-50 box-border">
             {quickEmojis.map(e => <button key={e} onClick={() => setInputText(prev => prev + e)} className="text-xl shrink-0">{e}</button>)}
@@ -241,12 +332,11 @@ const FullFeatureChatApp = () => {
         {activeMenu === 'attach' && (
           <div className="absolute bottom-16 left-2 bg-white shadow-xl border border-slate-200 rounded-xl p-3 w-[calc(100%-16px)] max-w-[300px] z-50 box-border overflow-hidden">
             <div className="grid grid-cols-3 gap-y-4 gap-x-2">
-              <div className="flex flex-col items-center gap-1 cursor-pointer overflow-hidden" onClick={() => sendPayload('feature', {label: 'Image_102.jpg', icon: '🖼️'})}><div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 shrink-0"><ImageIcon size={18}/></div><span className="text-[10px] font-semibold text-slate-600 truncate w-full text-center">Gallery</span></div>
+              <div className="flex flex-col items-center gap-1 cursor-pointer overflow-hidden" onClick={() => sendPayload('feature', {label: 'Image.jpg', icon: '🖼️'})}><div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 shrink-0"><ImageIcon size={18}/></div><span className="text-[10px] font-semibold text-slate-600 truncate w-full text-center">Gallery</span></div>
               <div className="flex flex-col items-center gap-1 cursor-pointer overflow-hidden" onClick={openCamera}><div className="w-10 h-10 rounded-full bg-pink-100 flex items-center justify-center text-pink-600 shrink-0"><Camera size={18}/></div><span className="text-[10px] font-semibold text-slate-600 truncate w-full text-center">Camera</span></div>
               <div className="flex flex-col items-center gap-1 cursor-pointer overflow-hidden" onClick={() => sendPayload('location')}><div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 shrink-0"><MapPin size={18}/></div><span className="text-[10px] font-semibold text-slate-600 truncate w-full text-center">Location</span></div>
-              <div className="flex flex-col items-center gap-1 cursor-pointer overflow-hidden" onClick={() => sendPayload('feature', {label: 'Contact Card', icon: '👤'})}><div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 shrink-0"><User size={18}/></div><span className="text-[10px] font-semibold text-slate-600 truncate w-full text-center">Contact</span></div>
-              <div className="flex flex-col items-center gap-1 cursor-pointer overflow-hidden" onClick={() => sendPayload('feature', {label: 'Document.pdf', icon: '📄'})}><div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 shrink-0"><FileText size={18}/></div><span className="text-[10px] font-semibold text-slate-600 truncate w-full text-center">Doc</span></div>
-              <div className="flex flex-col items-center gap-1 cursor-pointer overflow-hidden" onClick={() => sendPayload('feature', {label: 'Voice Note', icon: '🎵'})}><div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 shrink-0"><Headphones size={18}/></div><span className="text-[10px] font-semibold text-slate-600 truncate w-full text-center">Audio</span></div>
+              <div className="flex flex-col items-center gap-1 cursor-pointer overflow-hidden" onClick={() => sendPayload('feature', {label: 'Contact', icon: '👤'})}><div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 shrink-0"><User size={18}/></div><span className="text-[10px] font-semibold text-slate-600 truncate w-full text-center">Contact</span></div>
+              <div className="flex flex-col items-center gap-1 cursor-pointer overflow-hidden" onClick={() => sendPayload('feature', {label: 'Doc.pdf', icon: '📄'})}><div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 shrink-0"><FileText size={18}/></div><span className="text-[10px] font-semibold text-slate-600 truncate w-full text-center">Doc</span></div>
               <div className="flex flex-col items-center gap-1 cursor-pointer overflow-hidden" onClick={() => sendPayload('poll')}><div className="w-10 h-10 rounded-full bg-yellow-100 flex items-center justify-center text-yellow-600 shrink-0"><BarChart2 size={18}/></div><span className="text-[10px] font-semibold text-slate-600 truncate w-full text-center">Poll</span></div>
               <div className="flex flex-col items-center gap-1 cursor-pointer overflow-hidden" onClick={() => sendPayload('payment')}><div className="w-10 h-10 rounded-full bg-teal-100 flex items-center justify-center text-teal-600 shrink-0"><IndianRupee size={18}/></div><span className="text-[10px] font-semibold text-slate-600 truncate w-full text-center">Payment</span></div>
               <div className="flex flex-col items-center gap-1 cursor-pointer overflow-hidden" onClick={() => sendPayload('feature', {label: 'AI Image', icon: '✨'})}><div className="w-10 h-10 rounded-full bg-cyan-100 flex items-center justify-center text-cyan-600 shrink-0"><Sparkles size={18}/></div><span className="text-[10px] font-semibold text-slate-600 truncate w-full text-center">AI</span></div>
@@ -254,19 +344,25 @@ const FullFeatureChatApp = () => {
           </div>
         )}
 
-        {/* INPUT BAR */}
         <div className="flex items-center gap-1 w-full max-w-full overflow-hidden box-border">
-          <div className="flex-1 bg-slate-100 rounded-full flex items-center px-1 py-1 border border-slate-200 min-w-0 overflow-hidden box-border">
-            <button onClick={() => setActiveMenu(activeMenu === 'emoji' ? '' : 'emoji')} className={`p-1.5 shrink-0 ${activeMenu === 'emoji' ? 'text-blue-600' : 'text-slate-400'}`}><Smile size={18}/></button>
-            <button onClick={() => setActiveMenu(activeMenu === 'sticker' ? '' : 'sticker')} className={`p-1 shrink-0 ${activeMenu === 'sticker' ? 'text-blue-600' : 'text-slate-400'}`}><Sticker size={16}/></button>
-            
-            {/* The min-w-0 w-full class is the secret weapon to stop Edge from overflowing */}
-            <input type="text" placeholder="Message" value={inputText} onChange={(e) => setInputText(e.target.value)} onKeyDown={handleKeyPress} onClick={() => setActiveMenu('')} className="flex-1 min-w-0 w-full bg-transparent px-1 py-1 outline-none text-[14px] text-slate-800" />
-            
-            <button onClick={() => setActiveMenu(activeMenu === 'attach' ? '' : 'attach')} className={`p-1.5 shrink-0 ${activeMenu === 'attach' ? 'text-blue-600 rotate-45' : 'text-slate-400'}`}><Paperclip size={18} className="transform -rotate-45" /></button>
-          </div>
-          <button onClick={() => inputText.trim() ? sendPayload('text', {}, inputText) : null} className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white shrink-0 shadow-md">
-            {inputText.trim() ? <Send size={16} className="ml-0.5" /> : <Mic size={18} />}
+          {isRecording ? (
+            <div className="flex-1 bg-red-50 rounded-full flex items-center justify-between px-4 py-1.5 border border-red-200 min-w-0 overflow-hidden box-border animate-pulse">
+               <span className="text-red-500 font-bold text-sm flex items-center gap-2 shrink-0">
+                  <span className="w-2.5 h-2.5 rounded-full bg-red-500"></span> Recording Audio...
+               </span>
+               <button onClick={stopRecording} className="text-red-600 font-bold text-sm bg-white px-3 py-1 rounded-full shadow-sm shrink-0">Cancel</button>
+            </div>
+          ) : (
+            <div className="flex-1 bg-slate-100 rounded-full flex items-center px-1 py-1 border border-slate-200 min-w-0 overflow-hidden box-border">
+              <button onClick={() => setActiveMenu(activeMenu === 'emoji' ? '' : 'emoji')} className={`p-1.5 shrink-0 ${activeMenu === 'emoji' ? 'text-blue-600' : 'text-slate-400'}`}><Smile size={18}/></button>
+              <button onClick={() => setActiveMenu(activeMenu === 'sticker' ? '' : 'sticker')} className={`p-1 shrink-0 ${activeMenu === 'sticker' ? 'text-blue-600' : 'text-slate-400'}`}><Sticker size={16}/></button>
+              <input type="text" placeholder="Message..." value={inputText} onChange={(e) => setInputText(e.target.value)} onKeyDown={handleKeyPress} onClick={() => setActiveMenu('')} className="flex-1 min-w-0 w-full bg-transparent px-1 py-1 outline-none text-[14px] text-slate-800" />
+              <button onClick={() => setActiveMenu(activeMenu === 'attach' ? '' : 'attach')} className={`p-1.5 shrink-0 ${activeMenu === 'attach' ? 'text-blue-600 rotate-45' : 'text-slate-400'}`}><Paperclip size={18} className="transform -rotate-45" /></button>
+            </div>
+          )}
+
+          <button onClick={() => { isRecording ? stopRecording() : (inputText.trim() ? sendPayload('text', {}, inputText) : startRecording()); }} className={`w-10 h-10 rounded-full flex items-center justify-center text-white shrink-0 shadow-md transition-colors ${isRecording ? 'bg-red-500' : 'bg-blue-600'}`}>
+            {isRecording ? <Send size={16} className="ml-0.5" /> : (inputText.trim() ? <Send size={16} className="ml-0.5" /> : <Mic size={18} />)}
           </button>
         </div>
       </div>
