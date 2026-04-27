@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
 import { 
-  Send, Smile, Paperclip, Video, CheckCheck, 
+  Send, Smile, Paperclip, Video, CheckCheck, Check,
   Image as ImageIcon, User, MapPin, IndianRupee, 
   Mic, Camera, FileText, Headphones, BarChart2, 
   Sparkles, LogOut, ShieldCheck, Sticker, PhoneMissed, X 
@@ -23,12 +23,10 @@ const FullFeatureChatApp = () => {
   const [showVideoCall, setShowVideoCall] = useState(false);
   const [showCameraMode, setShowCameraMode] = useState(false);
   
-  // Audio Recording States
   const [isRecording, setIsRecording] = useState(false);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   
-  // NETWORK & LAST SEEN STATES
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [lastActiveTime, setLastActiveTime] = useState(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
   
@@ -44,9 +42,6 @@ const FullFeatureChatApp = () => {
     'https://cdn-icons-png.flaticon.com/512/4392/4392461.png'
   ];
 
-  // ==========================================
-  // NETWORK TRACKING EFFECT
-  // ==========================================
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => {
@@ -54,11 +49,8 @@ const FullFeatureChatApp = () => {
       setLastActiveTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
     };
 
-    // Listen to physical internet connection
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
-
-    // Listen to Socket.io connection
     socket.on('connect', handleOnline);
     socket.on('disconnect', handleOffline);
 
@@ -70,14 +62,10 @@ const FullFeatureChatApp = () => {
     };
   }, []);
 
-  // ==========================================
-  // MESSAGE RECEIVING EFFECT
-  // ==========================================
   useEffect(() => {
     const handleReceive = (data) => {
       const incomingMsg = { ...data, sender: 'them' };
       setMessages((prev) => [...prev, incomingMsg]);
-      // Update last seen when someone sends a message
       setLastActiveTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
     };
     
@@ -100,26 +88,37 @@ const FullFeatureChatApp = () => {
 
   const sendPayload = (type, content = {}, text = '') => {
     const now = new Date();
+    const msgId = Date.now();
     const newMsg = {
-      id: Date.now(),
+      id: msgId,
       text: text,
       time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       sender: 'me',
       senderName: username,
       type: type,
+      status: 'sent', // New status tracking feature
       ...content
     };
+    
     setMessages(prev => [...prev, newMsg]);
     socket.emit('send_message', newMsg);
     setInputText('');
     setActiveMenu('');
+
+    // SIMULATING DELIVERY AND READ RECEIPTS FOR PRESENTATION
+    setTimeout(() => {
+      setMessages(prev => prev.map(m => m.id === msgId ? { ...m, status: 'delivered' } : m));
+    }, 800); // Delivered after 0.8 seconds
+
+    setTimeout(() => {
+      setMessages(prev => prev.map(m => m.id === msgId ? { ...m, status: 'read' } : m));
+    }, 2500); // Read (Blue Ticks) after 2.5 seconds
   };
 
   const handleKeyPress = (e) => {
     if (e.key === 'Enter' && inputText.trim()) sendPayload('text', {}, inputText);
   };
 
-  // CAMERA LOGIC
   const openCamera = async () => {
     setActiveMenu('');
     setShowCameraMode(true);
@@ -138,12 +137,12 @@ const FullFeatureChatApp = () => {
     setShowCameraMode(false);
   };
 
-  // VOICE NOTE LOGIC
   const startRecording = async () => {
     setActiveMenu('');
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
+      // Optimized bitrate to keep files tiny for Socket.io
+      const mediaRecorder = new MediaRecorder(stream, { audioBitsPerSecond: 16000 });
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
 
@@ -162,7 +161,7 @@ const FullFeatureChatApp = () => {
       mediaRecorder.start();
       setIsRecording(true);
     } catch (err) {
-      alert("Microphone access denied. Please allow permissions.");
+      alert("Microphone access denied.");
     }
   };
 
@@ -173,9 +172,6 @@ const FullFeatureChatApp = () => {
     }
   };
 
-  // ==========================================
-  // SCREEN 1: LOGIN
-  // ==========================================
   if (!isJoined) {
     return (
       <div className="flex items-center justify-center h-[100dvh] w-full max-w-full overflow-hidden bg-slate-100 font-sans px-4 box-border">
@@ -196,9 +192,6 @@ const FullFeatureChatApp = () => {
     );
   }
 
-  // ==========================================
-  // SCREEN 2: MAIN APP
-  // ==========================================
   return (
     <div className="flex flex-col h-[100dvh] w-full max-w-full overflow-hidden bg-slate-50 font-sans text-slate-800 relative box-border">
       
@@ -221,14 +214,11 @@ const FullFeatureChatApp = () => {
         </div>
       )}
 
-      {/* HEADER WITH ONLINE/OFFLINE STATUS */}
       <div className="bg-white px-3 py-3 flex items-center justify-between z-30 border-b border-slate-200 shadow-sm w-full max-w-full shrink-0 box-border">
         <div className="flex items-center gap-2 min-w-0">
           <div className="w-10 h-10 bg-gradient-to-tr from-blue-600 to-indigo-500 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-md uppercase shrink-0">{username.charAt(0)}</div>
           <div className="min-w-0 overflow-hidden">
             <h1 className="text-base font-bold text-slate-800 truncate leading-tight">Global Network</h1>
-            
-            {/* DYNAMIC STATUS INDICATOR */}
             {isOnline ? (
               <p className="text-xs text-blue-600 font-semibold flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse shrink-0"></span> <span className="truncate">Online</span>
@@ -238,7 +228,6 @@ const FullFeatureChatApp = () => {
                 <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0"></span> <span className="truncate">Last seen at {lastActiveTime}</span>
               </p>
             )}
-
           </div>
         </div>
         <div className="flex items-center gap-1 shrink-0 ml-2">
@@ -247,7 +236,6 @@ const FullFeatureChatApp = () => {
         </div>
       </div>
 
-      {/* CHAT AREA */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden px-2 sm:px-4 pt-4 pb-4 w-full max-w-full box-border" onClick={() => setActiveMenu('')}>
         <div className="flex justify-center mb-6 w-full">
           <span className="text-[10px] font-bold text-slate-500 bg-white border border-slate-200 px-3 py-1 rounded-full shadow-sm whitespace-nowrap">
@@ -265,7 +253,7 @@ const FullFeatureChatApp = () => {
               
               {msg.type === 'audio' && (
                 <div className="mt-1 w-full max-w-[240px]">
-                  <audio controls src={msg.audioUrl} className="h-10 w-full" />
+                  <audio controls src={msg.audioUrl} className="h-10 w-full rounded-md" />
                 </div>
               )}
 
@@ -305,8 +293,17 @@ const FullFeatureChatApp = () => {
                 </div>
               )}
 
-              <div className={`flex items-center justify-end gap-1 mt-1 text-[9px] font-medium shrink-0 ${msg.sender === 'me' ? 'text-blue-200' : 'text-slate-400'}`}>
-                {msg.time} {msg.sender === 'me' && <CheckCheck size={12} className="shrink-0" />}
+              <div className={`flex items-center justify-end gap-1 mt-1 text-[10px] font-medium shrink-0 ${msg.sender === 'me' ? 'text-blue-200' : 'text-slate-400'}`}>
+                {msg.time}
+                
+                {/* DYNAMIC READ RECEIPTS FOR PRESENTATION */}
+                {msg.sender === 'me' && (
+                  <span className="ml-1 flex">
+                    {msg.status === 'sent' && <Check size={14} className="text-white/70" />}
+                    {msg.status === 'delivered' && <CheckCheck size={14} className="text-white/70" />}
+                    {msg.status === 'read' && <CheckCheck size={14} className="text-cyan-300 drop-shadow-sm" />}
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -314,9 +311,7 @@ const FullFeatureChatApp = () => {
         <div ref={chatEndRef} className="h-2 w-full" />
       </div>
 
-      {/* BOTTOM INPUT AREA */}
       <div className="bg-white border-t border-slate-200 p-2 relative w-full max-w-full shrink-0 box-border">
-        
         {activeMenu === 'emoji' && (
           <div className="absolute bottom-16 left-2 bg-white shadow-xl border border-slate-200 rounded-xl p-3 w-[calc(100%-16px)] max-w-[260px] grid grid-cols-4 gap-3 z-50 box-border">
             {quickEmojis.map(e => <button key={e} onClick={() => setInputText(prev => prev + e)} className="text-xl shrink-0">{e}</button>)}
