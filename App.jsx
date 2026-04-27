@@ -7,6 +7,7 @@ import {
   Sparkles, LogOut, ShieldCheck, Sticker, PhoneMissed, X 
 } from 'lucide-react';
 
+// IMPORTANT: Your working Render URL
 const socket = io('https://final-chat-demo.onrender.com'); 
 
 const FullFeatureChatApp = () => {
@@ -96,7 +97,7 @@ const FullFeatureChatApp = () => {
       sender: 'me',
       senderName: username,
       type: type,
-      status: 'sent', // New status tracking feature
+      status: 'sent', 
       ...content
     };
     
@@ -105,14 +106,13 @@ const FullFeatureChatApp = () => {
     setInputText('');
     setActiveMenu('');
 
-    // SIMULATING DELIVERY AND READ RECEIPTS FOR PRESENTATION
     setTimeout(() => {
       setMessages(prev => prev.map(m => m.id === msgId ? { ...m, status: 'delivered' } : m));
-    }, 800); // Delivered after 0.8 seconds
+    }, 800);
 
     setTimeout(() => {
       setMessages(prev => prev.map(m => m.id === msgId ? { ...m, status: 'read' } : m));
-    }, 2500); // Read (Blue Ticks) after 2.5 seconds
+    }, 2500); 
   };
 
   const handleKeyPress = (e) => {
@@ -141,7 +141,6 @@ const FullFeatureChatApp = () => {
     setActiveMenu('');
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      // Optimized bitrate to keep files tiny for Socket.io
       const mediaRecorder = new MediaRecorder(stream, { audioBitsPerSecond: 16000 });
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
@@ -251,9 +250,10 @@ const FullFeatureChatApp = () => {
               {msg.type === 'text' && <div className="text-[14px] leading-relaxed whitespace-pre-wrap break-words">{msg.text}</div>}
               {msg.type === 'sticker' && <div className="-mx-1"><img src={msg.url} alt="Sticker" className="w-24 h-24 object-contain drop-shadow-md max-w-full" /></div>}
               
+              {/* THE FIXED AUDIO PLAYER */}
               {msg.type === 'audio' && (
-                <div className="mt-1 w-full max-w-[240px]">
-                  <audio controls src={msg.audioUrl} className="h-10 w-full rounded-md" />
+                <div className="mt-2 mb-1 w-[220px] bg-white rounded-full overflow-hidden p-0.5 shadow-sm">
+                  <audio controls controlsList="nodownload" src={msg.audioUrl} className="h-10 w-full" style={{ outline: 'none' }} />
                 </div>
               )}
 
@@ -296,7 +296,6 @@ const FullFeatureChatApp = () => {
               <div className={`flex items-center justify-end gap-1 mt-1 text-[10px] font-medium shrink-0 ${msg.sender === 'me' ? 'text-blue-200' : 'text-slate-400'}`}>
                 {msg.time}
                 
-                {/* DYNAMIC READ RECEIPTS FOR PRESENTATION */}
                 {msg.sender === 'me' && (
                   <span className="ml-1 flex">
                     {msg.status === 'sent' && <Check size={14} className="text-white/70" />}
