@@ -176,10 +176,13 @@ const FullFeatureChatApp = () => {
       <div className="flex items-center justify-center h-[100dvh] w-full max-w-full overflow-hidden bg-slate-100 font-sans px-4 box-border">
         <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 border border-slate-200">
           <div className="flex justify-center mb-6">
-            <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg transform rotate-3">
-              <ShieldCheck size={32} className="text-white" />
-            </div>
-          </div>
+            <div className="flex justify-center mb-6">
+              <div className="flex justify-center mb-6">
+                <img 
+                 src="/logo192.png" 
+                 alt="Nexus Logo" 
+                 className="w-24 h-24 rounded-2xl shadow-xl border border-slate-100" />          
+      </div>
           <h1 className="text-2xl font-bold text-center text-slate-800 mb-2">Secure Messenger</h1>
           <p className="text-center text-slate-500 mb-6 text-sm">Enter your display name to connect</p>
           <form onSubmit={handleJoin} className="space-y-4 w-full">
