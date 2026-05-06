@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 
 // NOTE: If you need to run this offline tomorrow, change this to 'http://localhost:3000'
-const socket = io('https://final-chat-server-v2.onrender.com'); 
+const socket = io('https://final-chat-demo.onrender.com'); 
 
 const FullFeatureChatApp = () => {
   const [username, setUsername] = useState(localStorage.getItem('chat_user') || '');
