@@ -7,7 +7,8 @@ import {
   Sparkles, LogOut, ShieldCheck, Sticker, PhoneMissed, X 
 } from 'lucide-react';
 
-const socket = io('https://final-chat-demo.onrender.com'); 
+// NOTE: If you need to run this offline tomorrow, change this to 'http://localhost:3000'
+const socket = io('https://final-chat-server-v2.onrender.com'); 
 
 const FullFeatureChatApp = () => {
   const [username, setUsername] = useState(localStorage.getItem('chat_user') || '');
@@ -32,14 +33,28 @@ const FullFeatureChatApp = () => {
   
   const chatEndRef = useRef(null);
   const videoRef = useRef(null); 
+  const fileInputRef = useRef(null); // Ref for our new real file uploads
 
   const quickEmojis = ['😀','😂','🥰','😎','😭','😡','👍','🙏','🚀','✅','🔥','💯'];
+  
+  // The massively expanded sticker library!
   const dummyStickers = [
     'https://cdn-icons-png.flaticon.com/512/8065/8065529.png',
     'https://cdn-icons-png.flaticon.com/512/4392/4392524.png',
     'https://cdn-icons-png.flaticon.com/512/6188/6188688.png',
     'https://cdn-icons-png.flaticon.com/512/4392/4392464.png',
-    'https://cdn-icons-png.flaticon.com/512/4392/4392461.png'
+    'https://cdn-icons-png.flaticon.com/512/4392/4392461.png',
+    'https://cdn-icons-png.flaticon.com/512/4140/4140048.png', 
+    'https://cdn-icons-png.flaticon.com/512/4140/4140047.png', 
+    'https://cdn-icons-png.flaticon.com/512/4140/4140039.png', 
+    'https://cdn-icons-png.flaticon.com/512/4140/4140051.png', 
+    'https://cdn-icons-png.flaticon.com/512/4140/4140040.png', 
+    'https://cdn-icons-png.flaticon.com/512/4140/4140055.png', 
+    'https://cdn-icons-png.flaticon.com/512/4140/4140042.png', 
+    'https://cdn-icons-png.flaticon.com/512/4140/4140038.png', 
+    'https://cdn-icons-png.flaticon.com/512/4140/4140034.png', 
+    'https://cdn-icons-png.flaticon.com/512/4140/4140060.png', 
+    'https://cdn-icons-png.flaticon.com/512/4140/4140052.png'  
   ];
 
   useEffect(() => {
@@ -116,6 +131,32 @@ const FullFeatureChatApp = () => {
 
   const handleKeyPress = (e) => {
     if (e.key === 'Enter' && inputText.trim()) sendPayload('text', {}, inputText);
+  };
+
+  // REAL FILE UPLOAD LOGIC
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Keep files under 2MB for the Socket.io demo
+    if (file.size > 2 * 1024 * 1024) {
+      alert("For this live demo, please select a file under 2MB.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64Data = reader.result;
+      const isImage = file.type.startsWith('image/');
+      
+      sendPayload(isImage ? 'image' : 'document', {
+        fileUrl: base64Data,
+        fileName: file.name,
+        fileSize: (file.size / 1024).toFixed(1) + ' KB'
+      });
+    };
+    reader.readAsDataURL(file);
+    setActiveMenu(''); 
   };
 
   const openCamera = async () => {
@@ -249,11 +290,30 @@ const FullFeatureChatApp = () => {
               {msg.type === 'text' && <div className="text-[14px] leading-relaxed whitespace-pre-wrap break-words">{msg.text}</div>}
               {msg.type === 'sticker' && <div className="-mx-1"><img src={msg.url} alt="Sticker" className="w-24 h-24 object-contain drop-shadow-xl max-w-full" /></div>}
               
+              {/* REAL IMAGE RENDERER */}
+              {msg.type === 'image' && (
+                <div className="mt-1 -mx-1">
+                  <img src={msg.fileUrl} alt={msg.fileName} className="w-48 sm:w-64 max-h-64 rounded-xl object-cover drop-shadow-md border border-white/10" />
+                </div>
+              )}
+
+              {/* REAL DOCUMENT RENDERER */}
+              {msg.type === 'document' && (
+                <div className="mt-1 w-full min-w-[160px] bg-black/20 p-2.5 rounded-lg border border-white/10 flex items-center gap-3 hover:bg-black/30 transition cursor-pointer">
+                  <div className="bg-white/20 p-2 rounded-lg shrink-0"><FileText size={20} className={msg.sender === 'me' ? 'text-white' : 'text-cyan-400'}/></div>
+                  <div className="overflow-hidden flex-1">
+                    <div className="font-semibold text-[13px] truncate">{msg.fileName}</div>
+                    <div className="text-[10px] opacity-70 uppercase">{msg.fileSize} • FILE</div>
+                  </div>
+                </div>
+              )}
+
+              {/* ANTI-SQUISH AUDIO PLAYER */}
               {msg.type === 'audio' && (
-  <div className="mt-1 max-w-[240px] shrink-0 overflow-hidden">
-    <audio controls src={msg.audioUrl} className="h-10 w-[200px] sm:w-[240px] rounded-md shrink-0" />
-  </div>
-)}
+                <div className="mt-1 w-full overflow-hidden rounded-md bg-white/90">
+                  <audio controls src={msg.audioUrl} className="h-10 min-w-[180px] w-full" />
+                </div>
+              )}
 
               {msg.type === 'poll' && (
                 <div className="w-full min-w-[180px] max-w-full mt-1">
@@ -315,30 +375,56 @@ const FullFeatureChatApp = () => {
           </div>
         )}
 
+        {/* SCROLLABLE STICKER MENU */}
         {activeMenu === 'sticker' && (
-          <div className="absolute bottom-20 left-4 bg-slate-800/95 backdrop-blur-md shadow-2xl border border-slate-700 rounded-2xl p-4 w-[calc(100%-32px)] max-w-[300px] flex flex-wrap gap-3 z-50 box-border">
+          <div className="absolute bottom-20 left-4 bg-slate-800/95 backdrop-blur-md shadow-2xl border border-slate-700 rounded-2xl p-4 w-[calc(100%-32px)] max-w-[300px] h-[250px] overflow-y-auto [&::-webkit-scrollbar]:hidden flex flex-wrap gap-3 z-50 box-border content-start">
             {dummyStickers.map((s, i) => <img key={i} src={s} alt="sticker" onClick={() => sendPayload('sticker', {url: s})} className="w-14 h-14 cursor-pointer hover:scale-110 transition-transform shrink-0 drop-shadow-lg" />)}
           </div>
         )}
 
+        {/* ATTACHMENT MENU CONNECTED TO REAL FILE UPLOAD */}
         {activeMenu === 'attach' && (
           <div className="absolute bottom-20 left-4 bg-slate-800/95 backdrop-blur-md shadow-2xl border border-slate-700 rounded-2xl p-5 w-[calc(100%-32px)] max-w-[320px] z-50 box-border overflow-hidden">
             <div className="grid grid-cols-3 gap-y-6 gap-x-2">
-              <div className="flex flex-col items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => sendPayload('feature', {label: 'Image.jpg', icon: '🖼️'})}><div className="w-12 h-12 rounded-full bg-slate-700 flex items-center justify-center text-purple-400 shrink-0 shadow-inner"><ImageIcon size={20}/></div><span className="text-[11px] font-semibold text-slate-300 truncate w-full text-center">Gallery</span></div>
-              <div className="flex flex-col items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity" onClick={openCamera}><div className="w-12 h-12 rounded-full bg-slate-700 flex items-center justify-center text-pink-400 shrink-0 shadow-inner"><Camera size={20}/></div><span className="text-[11px] font-semibold text-slate-300 truncate w-full text-center">Camera</span></div>
-              <div className="flex flex-col items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => sendPayload('location')}><div className="w-12 h-12 rounded-full bg-slate-700 flex items-center justify-center text-emerald-400 shrink-0 shadow-inner"><MapPin size={20}/></div><span className="text-[11px] font-semibold text-slate-300 truncate w-full text-center">Location</span></div>
-              <div className="flex flex-col items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => sendPayload('feature', {label: 'Contact', icon: '👤'})}><div className="w-12 h-12 rounded-full bg-slate-700 flex items-center justify-center text-blue-400 shrink-0 shadow-inner"><User size={20}/></div><span className="text-[11px] font-semibold text-slate-300 truncate w-full text-center">Contact</span></div>
-              <div className="flex flex-col items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => sendPayload('feature', {label: 'Doc.pdf', icon: '📄'})}><div className="w-12 h-12 rounded-full bg-slate-700 flex items-center justify-center text-indigo-400 shrink-0 shadow-inner"><FileText size={20}/></div><span className="text-[11px] font-semibold text-slate-300 truncate w-full text-center">Document</span></div>
-              <div className="flex flex-col items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => sendPayload('poll')}><div className="w-12 h-12 rounded-full bg-slate-700 flex items-center justify-center text-yellow-400 shrink-0 shadow-inner"><BarChart2 size={20}/></div><span className="text-[11px] font-semibold text-slate-300 truncate w-full text-center">Poll</span></div>
-              <div className="flex flex-col items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => sendPayload('payment')}><div className="w-12 h-12 rounded-full bg-slate-700 flex items-center justify-center text-teal-400 shrink-0 shadow-inner"><IndianRupee size={20}/></div><span className="text-[11px] font-semibold text-slate-300 truncate w-full text-center">Payment</span></div>
+              <div className="flex flex-col items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => fileInputRef.current?.click()}>
+                <div className="w-12 h-12 rounded-full bg-slate-700 flex items-center justify-center text-purple-400 shrink-0 shadow-inner"><ImageIcon size={20}/></div>
+                <span className="text-[11px] font-semibold text-slate-300 truncate w-full text-center">Gallery</span>
+              </div>
+              <div className="flex flex-col items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity" onClick={openCamera}>
+                <div className="w-12 h-12 rounded-full bg-slate-700 flex items-center justify-center text-pink-400 shrink-0 shadow-inner"><Camera size={20}/></div>
+                <span className="text-[11px] font-semibold text-slate-300 truncate w-full text-center">Camera</span>
+              </div>
+              <div className="flex flex-col items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => sendPayload('location')}>
+                <div className="w-12 h-12 rounded-full bg-slate-700 flex items-center justify-center text-emerald-400 shrink-0 shadow-inner"><MapPin size={20}/></div>
+                <span className="text-[11px] font-semibold text-slate-300 truncate w-full text-center">Location</span>
+              </div>
+              <div className="flex flex-col items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => sendPayload('feature', {label: 'Contact', icon: '👤'})}>
+                <div className="w-12 h-12 rounded-full bg-slate-700 flex items-center justify-center text-blue-400 shrink-0 shadow-inner"><User size={20}/></div>
+                <span className="text-[11px] font-semibold text-slate-300 truncate w-full text-center">Contact</span>
+              </div>
+              <div className="flex flex-col items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => fileInputRef.current?.click()}>
+                <div className="w-12 h-12 rounded-full bg-slate-700 flex items-center justify-center text-indigo-400 shrink-0 shadow-inner"><FileText size={20}/></div>
+                <span className="text-[11px] font-semibold text-slate-300 truncate w-full text-center">Document</span>
+              </div>
+              <div className="flex flex-col items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => sendPayload('poll')}>
+                <div className="w-12 h-12 rounded-full bg-slate-700 flex items-center justify-center text-yellow-400 shrink-0 shadow-inner"><BarChart2 size={20}/></div>
+                <span className="text-[11px] font-semibold text-slate-300 truncate w-full text-center">Poll</span>
+              </div>
+              <div className="flex flex-col items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => sendPayload('payment')}>
+                <div className="w-12 h-12 rounded-full bg-slate-700 flex items-center justify-center text-teal-400 shrink-0 shadow-inner"><IndianRupee size={20}/></div>
+                <span className="text-[11px] font-semibold text-slate-300 truncate w-full text-center">Payment</span>
+              </div>
             </div>
           </div>
         )}
 
-        <div className="flex items-center gap-2 bg-slate-800/80 backdrop-blur-md p-1.5 rounded-full border border-slate-700 shadow-inner max-w-2xl mx-auto">
-          <button onClick={() => setActiveMenu(activeMenu === 'emoji' ? '' : 'emoji')} className="p-2 text-slate-400 hover:text-cyan-400 transition-colors"><Smile size={20}/></button>
-          <button onClick={() => setActiveMenu(activeMenu === 'sticker' ? '' : 'sticker')} className="p-2 text-slate-400 hover:text-cyan-400 transition-colors hidden sm:block"><Sticker size={20}/></button>
-          <button onClick={() => setActiveMenu(activeMenu === 'attach' ? '' : 'attach')} className="p-2 text-slate-400 hover:text-cyan-400 transition-colors"><Paperclip size={20}/></button>
+        <div className="flex items-center gap-1 sm:gap-2 bg-slate-800/80 backdrop-blur-md p-1.5 rounded-full border border-slate-700 shadow-inner w-full min-w-0 max-w-2xl mx-auto">
+          <button onClick={() => setActiveMenu(activeMenu === 'emoji' ? '' : 'emoji')} className="p-2 text-slate-400 hover:text-cyan-400 transition-colors hidden sm:block shrink-0"><Smile size={20}/></button>
+          
+          {/* THE STICKER BUTTON IS NOW ALWAYS VISIBLE */}
+          <button onClick={() => setActiveMenu(activeMenu === 'sticker' ? '' : 'sticker')} className="p-2 text-slate-400 hover:text-cyan-400 transition-colors shrink-0"><Sticker size={20}/></button>
+          
+          <button onClick={() => setActiveMenu(activeMenu === 'attach' ? '' : 'attach')} className="p-2 text-slate-400 hover:text-cyan-400 transition-colors shrink-0"><Paperclip size={20}/></button>
           
           <input 
             type="text" 
@@ -346,13 +432,13 @@ const FullFeatureChatApp = () => {
             onChange={(e) => setInputText(e.target.value)}
             onKeyDown={handleKeyPress}
             placeholder="Message..." 
-            className="flex-1 bg-transparent text-slate-200 placeholder-slate-500 focus:outline-none px-2 py-2"
+            className="flex-1 min-w-0 w-full bg-transparent text-slate-200 placeholder-slate-500 focus:outline-none px-2 py-2"
           />
 
           {inputText.trim() ? (
             <button 
               onClick={() => sendPayload('text', {}, inputText)} 
-              className="p-2.5 bg-gradient-to-tr from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded-full transition-colors shadow-md shadow-cyan-500/30"
+              className="p-2.5 bg-gradient-to-tr from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded-full transition-colors shadow-md shadow-cyan-500/30 shrink-0"
             >
               <Send size={18}/>
             </button>
@@ -362,7 +448,7 @@ const FullFeatureChatApp = () => {
               onMouseUp={stopRecording}
               onTouchStart={startRecording}
               onTouchEnd={stopRecording}
-              className={`p-2.5 rounded-full text-white transition-all shadow-md ${isRecording ? 'bg-red-500 animate-pulse shadow-red-500/50' : 'bg-slate-700 hover:bg-slate-600'}`}
+              className={`p-2.5 rounded-full text-white transition-all shadow-md shrink-0 ${isRecording ? 'bg-red-500 animate-pulse shadow-red-500/50' : 'bg-slate-700 hover:bg-slate-600'}`}
             >
               <Mic size={18}/>
             </button>
@@ -370,6 +456,16 @@ const FullFeatureChatApp = () => {
         </div>
 
       </div>
+
+      {/* HIDDEN FILE INPUT FOR REAL UPLOADS */}
+      <input 
+        type="file" 
+        ref={fileInputRef} 
+        className="hidden" 
+        onChange={handleFileUpload} 
+        accept="image/*, application/pdf, .doc, .docx, .txt" 
+      />
+
     </div>
   );
 };
