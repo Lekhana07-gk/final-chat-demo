@@ -250,10 +250,10 @@ const FullFeatureChatApp = () => {
               {msg.type === 'sticker' && <div className="-mx-1"><img src={msg.url} alt="Sticker" className="w-24 h-24 object-contain drop-shadow-xl max-w-full" /></div>}
               
               {msg.type === 'audio' && (
-                <div className="mt-1 w-full max-w-[240px]">
-                  <audio controls src={msg.audioUrl} className="h-10 w-full rounded-md" />
-                </div>
-              )}
+  <div className="mt-1 max-w-[240px] shrink-0 overflow-hidden">
+    <audio controls src={msg.audioUrl} className="h-10 w-[200px] sm:w-[240px] rounded-md shrink-0" />
+  </div>
+)}
 
               {msg.type === 'poll' && (
                 <div className="w-full min-w-[180px] max-w-full mt-1">
