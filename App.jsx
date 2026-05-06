@@ -33,11 +33,10 @@ const FullFeatureChatApp = () => {
   
   const chatEndRef = useRef(null);
   const videoRef = useRef(null); 
-  const fileInputRef = useRef(null); // Ref for our new real file uploads
+  const fileInputRef = useRef(null); // Ref for real file uploads
 
   const quickEmojis = ['😀','😂','🥰','😎','😭','😡','👍','🙏','🚀','✅','🔥','💯'];
   
-  // The massively expanded sticker library!
   const dummyStickers = [
     'https://cdn-icons-png.flaticon.com/512/8065/8065529.png',
     'https://cdn-icons-png.flaticon.com/512/4392/4392524.png',
@@ -133,12 +132,10 @@ const FullFeatureChatApp = () => {
     if (e.key === 'Enter' && inputText.trim()) sendPayload('text', {}, inputText);
   };
 
-  // REAL FILE UPLOAD LOGIC
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    // Keep files under 2MB for the Socket.io demo
     if (file.size > 2 * 1024 * 1024) {
       alert("For this live demo, please select a file under 2MB.");
       return;
@@ -290,14 +287,12 @@ const FullFeatureChatApp = () => {
               {msg.type === 'text' && <div className="text-[14px] leading-relaxed whitespace-pre-wrap break-words">{msg.text}</div>}
               {msg.type === 'sticker' && <div className="-mx-1"><img src={msg.url} alt="Sticker" className="w-24 h-24 object-contain drop-shadow-xl max-w-full" /></div>}
               
-              {/* REAL IMAGE RENDERER */}
               {msg.type === 'image' && (
                 <div className="mt-1 -mx-1">
                   <img src={msg.fileUrl} alt={msg.fileName} className="w-48 sm:w-64 max-h-64 rounded-xl object-cover drop-shadow-md border border-white/10" />
                 </div>
               )}
 
-              {/* REAL DOCUMENT RENDERER */}
               {msg.type === 'document' && (
                 <div className="mt-1 w-full min-w-[160px] bg-black/20 p-2.5 rounded-lg border border-white/10 flex items-center gap-3 hover:bg-black/30 transition cursor-pointer">
                   <div className="bg-white/20 p-2 rounded-lg shrink-0"><FileText size={20} className={msg.sender === 'me' ? 'text-white' : 'text-cyan-400'}/></div>
@@ -308,7 +303,6 @@ const FullFeatureChatApp = () => {
                 </div>
               )}
 
-              {/* ANTI-SQUISH AUDIO PLAYER */}
               {msg.type === 'audio' && (
                 <div className="mt-1 w-full overflow-hidden rounded-md bg-white/90">
                   <audio controls src={msg.audioUrl} className="h-10 min-w-[180px] w-full" />
@@ -369,6 +363,7 @@ const FullFeatureChatApp = () => {
 
       <div className="bg-slate-950 p-3 relative w-full max-w-full shrink-0 box-border border-t border-slate-800">
         
+        {/* EMOJI POPUP MENU */}
         {activeMenu === 'emoji' && (
           <div className="absolute bottom-20 left-4 bg-slate-800/95 backdrop-blur-md shadow-2xl border border-slate-700 rounded-2xl p-4 w-[calc(100%-32px)] max-w-[260px] grid grid-cols-4 gap-3 z-50 box-border">
             {quickEmojis.map(e => <button key={e} onClick={() => setInputText(prev => prev + e)} className="text-2xl hover:scale-110 transition-transform shrink-0">{e}</button>)}
@@ -418,10 +413,12 @@ const FullFeatureChatApp = () => {
           </div>
         )}
 
+        {/* INPUT BAR WITH ALL BUTTONS ALWAYS VISIBLE */}
         <div className="flex items-center gap-1 sm:gap-2 bg-slate-800/80 backdrop-blur-md p-1.5 rounded-full border border-slate-700 shadow-inner w-full min-w-0 max-w-2xl mx-auto">
-          <button onClick={() => setActiveMenu(activeMenu === 'emoji' ? '' : 'emoji')} className="p-2 text-slate-400 hover:text-cyan-400 transition-colors hidden sm:block shrink-0"><Smile size={20}/></button>
           
-          {/* THE STICKER BUTTON IS NOW ALWAYS VISIBLE */}
+          {/* 🌟 EMOJI BUTTON NOW PERMANENTLY VISIBLE! 🌟 */}
+          <button onClick={() => setActiveMenu(activeMenu === 'emoji' ? '' : 'emoji')} className="p-2 text-slate-400 hover:text-cyan-400 transition-colors shrink-0"><Smile size={20}/></button>
+          
           <button onClick={() => setActiveMenu(activeMenu === 'sticker' ? '' : 'sticker')} className="p-2 text-slate-400 hover:text-cyan-400 transition-colors shrink-0"><Sticker size={20}/></button>
           
           <button onClick={() => setActiveMenu(activeMenu === 'attach' ? '' : 'attach')} className="p-2 text-slate-400 hover:text-cyan-400 transition-colors shrink-0"><Paperclip size={20}/></button>
@@ -432,7 +429,7 @@ const FullFeatureChatApp = () => {
             onChange={(e) => setInputText(e.target.value)}
             onKeyDown={handleKeyPress}
             placeholder="Message..." 
-            className="flex-1 min-w-0 w-full bg-transparent text-slate-200 placeholder-slate-500 focus:outline-none px-2 py-2"
+            className="flex-1 min-w-[40px] w-full bg-transparent text-slate-200 placeholder-slate-500 focus:outline-none px-2 py-2"
           />
 
           {inputText.trim() ? (
@@ -457,7 +454,6 @@ const FullFeatureChatApp = () => {
 
       </div>
 
-      {/* HIDDEN FILE INPUT FOR REAL UPLOADS */}
       <input 
         type="file" 
         ref={fileInputRef} 
