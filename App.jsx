@@ -7,7 +7,7 @@ import {
   Sparkles, LogOut, ShieldCheck, Sticker, PhoneMissed, X 
 } from 'lucide-react';
 
-const socket = io('https://final-chat-server-v2.onrender.com'); 
+const socket = io('https://final-chat-demo.onrender.com'); 
 
 const FullFeatureChatApp = () => {
   const [username, setUsername] = useState(localStorage.getItem('chat_user') || '');
