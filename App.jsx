@@ -7,11 +7,12 @@ import {
   Sparkles, LogOut, ShieldCheck, Sticker, PhoneMissed, X 
 } from 'lucide-react';
 
-// NOTE: If you need to run this offline tomorrow, change this to 'http://localhost:3000'
-const socket = io('https://final-chat-demo.onrender.com'); 
+const socket = io('https://final-chat-server-v2.onrender.com'); 
 
 const FullFeatureChatApp = () => {
   const [username, setUsername] = useState(localStorage.getItem('chat_user') || '');
+  const [statusText, setStatusText] = useState(localStorage.getItem('chat_status') || 'Available 🚀');
+  const [avatar, setAvatar] = useState(localStorage.getItem('chat_avatar') || 'https://api.dicebear.com/7.x/adventurer/svg?seed=Felix');
   const [isJoined, setIsJoined] = useState(!!localStorage.getItem('chat_user'));
   
   const [inputText, setInputText] = useState('');
@@ -33,10 +34,18 @@ const FullFeatureChatApp = () => {
   
   const chatEndRef = useRef(null);
   const videoRef = useRef(null); 
-  const fileInputRef = useRef(null); // Ref for real file uploads
+  const fileInputRef = useRef(null);
 
   const quickEmojis = ['😀','😂','🥰','😎','😭','😡','👍','🙏','🚀','✅','🔥','💯'];
   
+  // Pre-loaded Demo Profile Pictures
+  const avatarOptions = [
+    'https://api.dicebear.com/7.x/adventurer/svg?seed=Felix',
+    'https://api.dicebear.com/7.x/adventurer/svg?seed=Aneka',
+    'https://api.dicebear.com/7.x/adventurer/svg?seed=Mimi',
+    'https://api.dicebear.com/7.x/adventurer/svg?seed=Leo'
+  ];
+
   const dummyStickers = [
     'https://cdn-icons-png.flaticon.com/512/8065/8065529.png',
     'https://cdn-icons-png.flaticon.com/512/4392/4392524.png',
@@ -96,6 +105,8 @@ const FullFeatureChatApp = () => {
     e.preventDefault();
     if (username.trim().length > 0) {
       localStorage.setItem('chat_user', username.trim());
+      localStorage.setItem('chat_status', statusText.trim());
+      localStorage.setItem('chat_avatar', avatar);
       setIsJoined(true);
     }
   };
@@ -212,15 +223,33 @@ const FullFeatureChatApp = () => {
     return (
       <div className="flex items-center justify-center h-[100dvh] w-full max-w-full overflow-hidden bg-slate-950 font-sans px-4 box-border">
         <div className="w-full max-w-md bg-slate-900/80 backdrop-blur-md rounded-3xl shadow-2xl p-8 border border-slate-800">
+          
+          {/* LOGO SECTION */}
           <div className="flex justify-center mb-6">
-            <div className="w-16 h-16 bg-gradient-to-tr from-cyan-600 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-cyan-500/30 transform rotate-3">
-              <ShieldCheck size={32} className="text-white" />
-            </div>
+            <img src="/logo192.png" alt="App Logo" className="w-24 h-24 object-contain drop-shadow-2xl hover:scale-105 transition-transform" />
           </div>
+          
           <h1 className="text-2xl font-bold text-center text-white mb-2">Nexus Chat</h1>
-          <p className="text-center text-slate-400 mb-6 text-sm">Enter your display name to connect</p>
+          <p className="text-center text-slate-400 mb-6 text-sm">Set up your profile to connect</p>
+          
           <form onSubmit={handleJoin} className="space-y-4 w-full">
-            <input type="text" placeholder="Your Name" value={username} onChange={(e) => setUsername(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 bg-slate-800 text-white placeholder-slate-500 box-border" autoFocus />
+            
+            {/* AVATAR SELECTOR */}
+            <div className="flex justify-center gap-4 py-2 mb-2">
+              {avatarOptions.map((imgUrl, i) => (
+                <img 
+                  key={i} 
+                  src={imgUrl} 
+                  alt="Avatar option" 
+                  onClick={() => setAvatar(imgUrl)} 
+                  className={`w-12 h-12 rounded-full cursor-pointer transition-all bg-slate-800 ${avatar === imgUrl ? 'ring-2 ring-cyan-500 scale-110 shadow-lg shadow-cyan-500/40' : 'opacity-60 hover:opacity-100'}`} 
+                />
+              ))}
+            </div>
+
+            <input type="text" placeholder="Your Display Name" value={username} onChange={(e) => setUsername(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 bg-slate-800 text-white placeholder-slate-500 box-border" autoFocus />
+            <input type="text" placeholder="Your Status (e.g., At college)" value={statusText} onChange={(e) => setStatusText(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 bg-slate-800 text-white placeholder-slate-500 box-border" />
+            
             <button type="submit" disabled={!username.trim()} className="w-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 disabled:from-slate-700 disabled:to-slate-700 disabled:text-slate-500 text-white font-bold py-3 rounded-xl transition-all shadow-md box-border">Enter Hub</button>
           </form>
         </div>
@@ -233,8 +262,8 @@ const FullFeatureChatApp = () => {
       
       {showVideoCall && (
         <div className="absolute inset-0 z-50 bg-slate-950/95 backdrop-blur-xl flex flex-col items-center justify-center text-white w-full h-full overflow-hidden">
-          <div className="w-24 h-24 bg-gradient-to-tr from-cyan-600 to-blue-600 rounded-full flex items-center justify-center text-4xl font-bold mb-4 animate-pulse shadow-lg shadow-cyan-500/50">G</div>
-          <h2 className="text-2xl font-bold mb-1">Global Network</h2>
+          <img src={avatar} alt="Profile" className="w-24 h-24 rounded-full mb-4 animate-pulse shadow-lg shadow-cyan-500/50 bg-slate-800 border-2 border-slate-700" />
+          <h2 className="text-2xl font-bold mb-1">{username}</h2>
           <p className="text-slate-400 mb-12">Calling...</p>
           <button onClick={() => setShowVideoCall(false)} className="w-16 h-16 bg-red-500 rounded-full flex items-center justify-center hover:bg-red-400 shadow-lg shadow-red-500/30 transition-all"><PhoneMissed size={28}/></button>
         </div>
@@ -250,17 +279,18 @@ const FullFeatureChatApp = () => {
         </div>
       )}
 
+      {/* UPDATED CHAT HEADER WITH CUSTOM PROFILE */}
       <div className="bg-slate-900/80 backdrop-blur-md px-4 py-3 flex items-center justify-between z-30 border-b border-slate-800 shadow-sm w-full max-w-full shrink-0 box-border">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="w-10 h-10 bg-gradient-to-tr from-cyan-600 to-blue-500 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-md uppercase shrink-0">{username.charAt(0)}</div>
+          <img src={avatar} alt="Profile" className="w-10 h-10 rounded-full shadow-md shrink-0 border border-slate-700 bg-slate-800" />
           <div className="min-w-0 overflow-hidden">
-            <h1 className="text-base font-bold text-white truncate leading-tight">Global Network</h1>
+            <h1 className="text-base font-bold text-white truncate leading-tight">{username}</h1>
             {isOnline ? (
-              <p className="text-xs text-cyan-400 font-semibold flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse shrink-0"></span> <span className="truncate">Online</span>
+              <p className="text-xs text-cyan-400 font-semibold flex items-center gap-1.5 truncate">
+                <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse shrink-0"></span> <span className="truncate">Online • {statusText}</span>
               </p>
             ) : (
-              <p className="text-xs text-slate-500 font-medium flex items-center gap-1.5">
+              <p className="text-xs text-slate-500 font-medium flex items-center gap-1.5 truncate">
                 <span className="w-1.5 h-1.5 rounded-full bg-slate-500 shrink-0"></span> <span className="truncate">Last seen at {lastActiveTime}</span>
               </p>
             )}
@@ -304,8 +334,8 @@ const FullFeatureChatApp = () => {
               )}
 
               {msg.type === 'audio' && (
-                <div className="mt-1 w-full overflow-hidden rounded-md bg-white/90">
-                  <audio controls src={msg.audioUrl} className="h-10 min-w-[180px] w-full" />
+                <div className="mt-1 w-[240px] shrink-0 overflow-hidden rounded-[20px] bg-slate-100">
+                  <audio controls src={msg.audioUrl} className="h-10 w-[240px] shrink-0" />
                 </div>
               )}
 
@@ -363,21 +393,18 @@ const FullFeatureChatApp = () => {
 
       <div className="bg-slate-950 p-3 relative w-full max-w-full shrink-0 box-border border-t border-slate-800">
         
-        {/* EMOJI POPUP MENU */}
         {activeMenu === 'emoji' && (
           <div className="absolute bottom-20 left-4 bg-slate-800/95 backdrop-blur-md shadow-2xl border border-slate-700 rounded-2xl p-4 w-[calc(100%-32px)] max-w-[260px] grid grid-cols-4 gap-3 z-50 box-border">
             {quickEmojis.map(e => <button key={e} onClick={() => setInputText(prev => prev + e)} className="text-2xl hover:scale-110 transition-transform shrink-0">{e}</button>)}
           </div>
         )}
 
-        {/* SCROLLABLE STICKER MENU */}
         {activeMenu === 'sticker' && (
           <div className="absolute bottom-20 left-4 bg-slate-800/95 backdrop-blur-md shadow-2xl border border-slate-700 rounded-2xl p-4 w-[calc(100%-32px)] max-w-[300px] h-[250px] overflow-y-auto [&::-webkit-scrollbar]:hidden flex flex-wrap gap-3 z-50 box-border content-start">
             {dummyStickers.map((s, i) => <img key={i} src={s} alt="sticker" onClick={() => sendPayload('sticker', {url: s})} className="w-14 h-14 cursor-pointer hover:scale-110 transition-transform shrink-0 drop-shadow-lg" />)}
           </div>
         )}
 
-        {/* ATTACHMENT MENU CONNECTED TO REAL FILE UPLOAD */}
         {activeMenu === 'attach' && (
           <div className="absolute bottom-20 left-4 bg-slate-800/95 backdrop-blur-md shadow-2xl border border-slate-700 rounded-2xl p-5 w-[calc(100%-32px)] max-w-[320px] z-50 box-border overflow-hidden">
             <div className="grid grid-cols-3 gap-y-6 gap-x-2">
@@ -413,14 +440,9 @@ const FullFeatureChatApp = () => {
           </div>
         )}
 
-        {/* INPUT BAR WITH ALL BUTTONS ALWAYS VISIBLE */}
         <div className="flex items-center gap-1 sm:gap-2 bg-slate-800/80 backdrop-blur-md p-1.5 rounded-full border border-slate-700 shadow-inner w-full min-w-0 max-w-2xl mx-auto">
-          
-          {/* 🌟 EMOJI BUTTON NOW PERMANENTLY VISIBLE! 🌟 */}
           <button onClick={() => setActiveMenu(activeMenu === 'emoji' ? '' : 'emoji')} className="p-2 text-slate-400 hover:text-cyan-400 transition-colors shrink-0"><Smile size={20}/></button>
-          
           <button onClick={() => setActiveMenu(activeMenu === 'sticker' ? '' : 'sticker')} className="p-2 text-slate-400 hover:text-cyan-400 transition-colors shrink-0"><Sticker size={20}/></button>
-          
           <button onClick={() => setActiveMenu(activeMenu === 'attach' ? '' : 'attach')} className="p-2 text-slate-400 hover:text-cyan-400 transition-colors shrink-0"><Paperclip size={20}/></button>
           
           <input 
@@ -451,7 +473,6 @@ const FullFeatureChatApp = () => {
             </button>
           )}
         </div>
-
       </div>
 
       <input 
