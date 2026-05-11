@@ -75,7 +75,6 @@ const FullFeatureChatApp = () => {
     };
   }, []);
 
-  // FIXED: DEEP COPY MEMORY BUG FOR POLL VOTES
   useEffect(() => {
     const handleReceive = (data) => {
       if (data.type === 'poll_vote') {
@@ -150,7 +149,6 @@ const FullFeatureChatApp = () => {
     }, 2500); 
   };
 
-  // FIXED: DEEP COPY MEMORY BUG FOR MY OWN VOTES
   const handleVote = (pollId, optionIndex) => {
     setMessages(prev => prev.map(m => {
       if (m.id === pollId) {
@@ -353,7 +351,7 @@ const FullFeatureChatApp = () => {
                 </div>
               )}
 
-              {/* FIXED POLL UI: CLEARLY SHOWS VOTER NAMES AND PREVENTS SQUISHING */}
+              {/* PERFECTED SMART POLL UI */}
               {msg.type === 'poll' && (
                 <div className="w-full min-w-[240px] max-w-full mt-1 bg-black/30 p-3 rounded-xl border border-white/10 shadow-inner">
                   <div className="flex items-center gap-2 font-bold text-sm mb-3 text-white">
@@ -365,7 +363,16 @@ const FullFeatureChatApp = () => {
                       const votersList = opt.voters || [];
                       const voteCount = opt.votes || 0;
                       const percent = msg.totalVotes > 0 ? Math.round((voteCount / msg.totalVotes) * 100) : 0;
-                      const voterNames = votersList.join(', ');
+                      
+                      // Smart Truncation for many voters
+                      let displayNameText = "";
+                      if (votersList.length > 0) {
+                        if (votersList.length <= 2) {
+                          displayNameText = votersList.join(', ');
+                        } else {
+                          displayNameText = `${votersList[0]}, ${votersList[1]} + ${votersList.length - 2} more`;
+                        }
+                      }
 
                       return (
                         <div 
@@ -373,12 +380,9 @@ const FullFeatureChatApp = () => {
                           onClick={() => !msg.hasVoted && handleVote(msg.id, idx)}
                           className={`relative w-full rounded-lg overflow-hidden border border-white/10 transition-all ${!msg.hasVoted ? 'cursor-pointer hover:border-cyan-400 bg-slate-800' : 'bg-slate-900 cursor-default'}`}
                         >
-                          {/* The Background Progress Bar Fill */}
                           <div className="absolute top-0 left-0 h-full bg-gradient-to-r from-cyan-600 to-blue-600 opacity-30 transition-all duration-700 ease-out" style={{width: `${percent}%`}}></div>
                           
-                          {/* Content Wrapper */}
                           <div className="relative p-2.5 z-10 w-full flex flex-col">
-                             {/* Top Row: Option Text and % */}
                              <div className="flex justify-between items-start w-full">
                                 <span className="font-semibold text-white text-[13px]">{opt.text}</span>
                                 <span className="font-bold text-cyan-300 text-[11px] shrink-0 ml-2 bg-black/50 px-2 py-0.5 rounded-full">
@@ -386,10 +390,10 @@ const FullFeatureChatApp = () => {
                                 </span>
                              </div>
 
-                             {/* Bottom Row: Voter Names Display */}
+                             {/* Safely handles overflowing names */}
                              {votersList.length > 0 && (
-                                <div className="text-[10px] text-cyan-100 mt-1.5 opacity-90 leading-tight">
-                                  <span className="font-semibold text-cyan-400">Voted by:</span> {voterNames}
+                                <div className="text-[10px] text-cyan-100 mt-1.5 opacity-90 leading-tight block w-full overflow-hidden text-ellipsis whitespace-nowrap pr-2">
+                                  <span className="font-semibold text-cyan-400 mr-1">Voted by:</span>{displayNameText}
                                 </div>
                              )}
                           </div>
