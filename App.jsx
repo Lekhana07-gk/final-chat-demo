@@ -7,7 +7,6 @@ import {
   LogOut, ShieldCheck, Sticker, PhoneMissed, X 
 } from 'lucide-react';
 
-// Make sure this matches your actual Render server URL!
 const socket = io('https://final-chat-demo.onrender.com'); 
 
 const FullFeatureChatApp = () => {
@@ -76,14 +75,18 @@ const FullFeatureChatApp = () => {
     };
   }, []);
 
-  // UPDATED RECEIVE LOGIC TO HANDLE LIVE POLL VOTES
   useEffect(() => {
     const handleReceive = (data) => {
       if (data.type === 'poll_vote') {
         setMessages(prev => prev.map(m => {
           if (m.id === data.pollId && m.type === 'poll') {
             const newOptions = [...m.options];
-            newOptions[data.optionIndex].votes += 1;
+            const targetOpt = newOptions[data.optionIndex];
+            targetOpt.voters = targetOpt.voters || [];
+            
+            if (!targetOpt.voters.includes(data.voterName)) {
+              targetOpt.voters.push(data.voterName);
+            }
             return { ...m, options: newOptions, totalVotes: (m.totalVotes || 0) + 1 };
           }
           return m;
@@ -143,17 +146,21 @@ const FullFeatureChatApp = () => {
     }, 2500); 
   };
 
-  // HANDLE REAL LIVE POLL VOTES
   const handleVote = (pollId, optionIndex) => {
     setMessages(prev => prev.map(m => {
       if (m.id === pollId) {
         const newOptions = [...m.options];
-        newOptions[optionIndex].votes += 1;
+        const targetOpt = newOptions[optionIndex];
+        targetOpt.voters = targetOpt.voters || [];
+        
+        if (!targetOpt.voters.includes(username)) {
+          targetOpt.voters.push(username);
+        }
         return { ...m, options: newOptions, totalVotes: (m.totalVotes || 0) + 1, hasVoted: true };
       }
       return m;
     }));
-    socket.emit('send_message', { type: 'poll_vote', pollId: pollId, optionIndex: optionIndex });
+    socket.emit('send_message', { type: 'poll_vote', pollId: pollId, optionIndex: optionIndex, voterName: username });
   };
 
   const handleKeyPress = (e) => {
@@ -338,7 +345,7 @@ const FullFeatureChatApp = () => {
                 </div>
               )}
 
-              {/* REAL LIVE SYNC POLL UI */}
+              {/* REAL LIVE SYNC POLL UI - UNLIMITED OPTIONS WITH VOTER NAMES */}
               {msg.type === 'poll' && (
                 <div className="w-full min-w-[220px] max-w-full mt-1 bg-black/20 p-3 rounded-xl border border-white/10 shadow-inner">
                   <div className="flex items-center gap-2 font-bold text-sm mb-3 text-white">
@@ -347,7 +354,11 @@ const FullFeatureChatApp = () => {
                   
                   <div className="space-y-2 mb-2 w-full">
                     {msg.options.map((opt, idx) => {
-                      const percent = msg.totalVotes > 0 ? Math.round((opt.votes / msg.totalVotes) * 100) : 0;
+                      const votersList = opt.voters || [];
+                      const voteCount = votersList.length || opt.votes || 0;
+                      const percent = msg.totalVotes > 0 ? Math.round((voteCount / msg.totalVotes) * 100) : 0;
+                      const voterNames = votersList.join(', ');
+
                       return (
                         <div 
                           key={idx} 
@@ -356,10 +367,15 @@ const FullFeatureChatApp = () => {
                         >
                           <div className="absolute top-0 left-0 h-full bg-gradient-to-r from-cyan-600 to-blue-600 opacity-40 transition-all duration-700 ease-out" style={{width: `${percent}%`}}></div>
                           <div className="relative p-2.5 flex justify-between items-center text-[13px] z-10 w-full">
-                            <span className="font-semibold text-white">{opt.text}</span>
+                            
+                            <div className="flex flex-col">
+                              <span className="font-semibold text-white">{opt.text}</span>
+                              {voteCount > 0 && <span className="text-[10px] text-cyan-200 mt-0.5 opacity-90">{voterNames}</span>}
+                            </div>
+
                             {msg.totalVotes > 0 && (
-                              <span className="font-bold text-cyan-300 text-[11px] shrink-0 ml-2 bg-black/40 px-2 py-0.5 rounded-full">
-                                {percent}% ({opt.votes})
+                              <span className="font-bold text-cyan-300 text-[11px] shrink-0 ml-2 bg-black/40 px-2 py-0.5 rounded-full h-fit">
+                                {percent}% ({voteCount})
                               </span>
                             )}
                           </div>
@@ -425,7 +441,6 @@ const FullFeatureChatApp = () => {
           </div>
         )}
 
-        {/* UPDATED ATTACH MENU (NO PAYMENT OR CONTACT, REAL POLL AND REAL LOCATION) */}
         {activeMenu === 'attach' && (
           <div className="absolute bottom-20 left-4 bg-slate-800/95 backdrop-blur-md shadow-2xl border border-slate-700 rounded-2xl p-5 w-[calc(100%-32px)] max-w-[320px] z-50 box-border overflow-hidden">
             <div className="grid grid-cols-3 gap-y-6 gap-x-2">
@@ -438,7 +453,6 @@ const FullFeatureChatApp = () => {
                 <span className="text-[11px] font-semibold text-slate-300 truncate w-full text-center">Camera</span>
               </div>
               
-              {/* REAL LOCATION BUTTON */}
               <div className="flex flex-col items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity" 
                 onClick={() => {
                   setActiveMenu('');
@@ -463,19 +477,30 @@ const FullFeatureChatApp = () => {
                 <span className="text-[11px] font-semibold text-slate-300 truncate w-full text-center">Document</span>
               </div>
 
-              {/* REAL LIVE POLL BUTTON */}
+              {/* UNLIMITED OPTIONS POLL GENERATOR */}
               <div className="flex flex-col items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity" 
                 onClick={() => {
                   setActiveMenu('');
                   const question = prompt("Enter your poll question (e.g., Which framework is best?):");
                   if(!question) return;
-                  const opt1 = prompt("Option 1:");
-                  const opt2 = prompt("Option 2:");
-                  if(!opt1 || !opt2) return;
+                  
+                  const optionsStr = prompt("Enter options separated by commas (e.g., Python, Java, C++, React):");
+                  if(!optionsStr) return;
+
+                  const optionsArray = optionsStr.split(',').map(opt => ({
+                    text: opt.trim(),
+                    voters: [], // We now store names in an array!
+                    votes: 0
+                  })).filter(opt => opt.text.length > 0);
+
+                  if (optionsArray.length < 2) {
+                    alert("You must provide at least 2 options!");
+                    return;
+                  }
                   
                   sendPayload('poll', {
                     question: question,
-                    options: [ { text: opt1, votes: 0 }, { text: opt2, votes: 0 } ],
+                    options: optionsArray,
                     totalVotes: 0
                   });
                 }}>
