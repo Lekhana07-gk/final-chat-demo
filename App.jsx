@@ -75,19 +75,23 @@ const FullFeatureChatApp = () => {
     };
   }, []);
 
+  // FIXED: DEEP COPY MEMORY BUG FOR POLL VOTES
   useEffect(() => {
     const handleReceive = (data) => {
       if (data.type === 'poll_vote') {
         setMessages(prev => prev.map(m => {
           if (m.id === data.pollId && m.type === 'poll') {
-            const newOptions = [...m.options];
-            const targetOpt = newOptions[data.optionIndex];
-            targetOpt.voters = targetOpt.voters || [];
-            
-            if (!targetOpt.voters.includes(data.voterName)) {
-              targetOpt.voters.push(data.voterName);
-            }
-            return { ...m, options: newOptions, totalVotes: (m.totalVotes || 0) + 1 };
+            const newOptions = m.options.map((opt, idx) => {
+              if (idx === data.optionIndex) {
+                const currentVoters = opt.voters || [];
+                if (!currentVoters.includes(data.voterName)) {
+                  return { ...opt, votes: opt.votes + 1, voters: [...currentVoters, data.voterName] };
+                }
+              }
+              return opt;
+            });
+            const newTotal = newOptions.reduce((acc, curr) => acc + (curr.votes || 0), 0);
+            return { ...m, options: newOptions, totalVotes: newTotal };
           }
           return m;
         }));
@@ -146,17 +150,21 @@ const FullFeatureChatApp = () => {
     }, 2500); 
   };
 
+  // FIXED: DEEP COPY MEMORY BUG FOR MY OWN VOTES
   const handleVote = (pollId, optionIndex) => {
     setMessages(prev => prev.map(m => {
       if (m.id === pollId) {
-        const newOptions = [...m.options];
-        const targetOpt = newOptions[optionIndex];
-        targetOpt.voters = targetOpt.voters || [];
-        
-        if (!targetOpt.voters.includes(username)) {
-          targetOpt.voters.push(username);
-        }
-        return { ...m, options: newOptions, totalVotes: (m.totalVotes || 0) + 1, hasVoted: true };
+        const newOptions = m.options.map((opt, idx) => {
+          if (idx === optionIndex) {
+            const currentVoters = opt.voters || [];
+            if (!currentVoters.includes(username)) {
+              return { ...opt, votes: opt.votes + 1, voters: [...currentVoters, username] };
+            }
+          }
+          return opt;
+        });
+        const newTotal = newOptions.reduce((acc, curr) => acc + (curr.votes || 0), 0);
+        return { ...m, options: newOptions, totalVotes: newTotal, hasVoted: true };
       }
       return m;
     }));
@@ -345,9 +353,9 @@ const FullFeatureChatApp = () => {
                 </div>
               )}
 
-              {/* REAL LIVE SYNC POLL UI - UNLIMITED OPTIONS WITH VOTER NAMES */}
+              {/* FIXED POLL UI: CLEARLY SHOWS VOTER NAMES AND PREVENTS SQUISHING */}
               {msg.type === 'poll' && (
-                <div className="w-full min-w-[220px] max-w-full mt-1 bg-black/20 p-3 rounded-xl border border-white/10 shadow-inner">
+                <div className="w-full min-w-[240px] max-w-full mt-1 bg-black/30 p-3 rounded-xl border border-white/10 shadow-inner">
                   <div className="flex items-center gap-2 font-bold text-sm mb-3 text-white">
                     <BarChart2 size={18} className="text-yellow-400 shrink-0"/> {msg.question}
                   </div>
@@ -355,7 +363,7 @@ const FullFeatureChatApp = () => {
                   <div className="space-y-2 mb-2 w-full">
                     {msg.options.map((opt, idx) => {
                       const votersList = opt.voters || [];
-                      const voteCount = votersList.length || opt.votes || 0;
+                      const voteCount = opt.votes || 0;
                       const percent = msg.totalVotes > 0 ? Math.round((voteCount / msg.totalVotes) * 100) : 0;
                       const voterNames = votersList.join(', ');
 
@@ -363,21 +371,27 @@ const FullFeatureChatApp = () => {
                         <div 
                           key={idx} 
                           onClick={() => !msg.hasVoted && handleVote(msg.id, idx)}
-                          className={`relative w-full rounded-lg overflow-hidden border border-white/5 transition-all ${!msg.hasVoted ? 'cursor-pointer hover:border-cyan-400 bg-slate-800' : 'bg-slate-900 cursor-default'}`}
+                          className={`relative w-full rounded-lg overflow-hidden border border-white/10 transition-all ${!msg.hasVoted ? 'cursor-pointer hover:border-cyan-400 bg-slate-800' : 'bg-slate-900 cursor-default'}`}
                         >
-                          <div className="absolute top-0 left-0 h-full bg-gradient-to-r from-cyan-600 to-blue-600 opacity-40 transition-all duration-700 ease-out" style={{width: `${percent}%`}}></div>
-                          <div className="relative p-2.5 flex justify-between items-center text-[13px] z-10 w-full">
-                            
-                            <div className="flex flex-col">
-                              <span className="font-semibold text-white">{opt.text}</span>
-                              {voteCount > 0 && <span className="text-[10px] text-cyan-200 mt-0.5 opacity-90">{voterNames}</span>}
-                            </div>
+                          {/* The Background Progress Bar Fill */}
+                          <div className="absolute top-0 left-0 h-full bg-gradient-to-r from-cyan-600 to-blue-600 opacity-30 transition-all duration-700 ease-out" style={{width: `${percent}%`}}></div>
+                          
+                          {/* Content Wrapper */}
+                          <div className="relative p-2.5 z-10 w-full flex flex-col">
+                             {/* Top Row: Option Text and % */}
+                             <div className="flex justify-between items-start w-full">
+                                <span className="font-semibold text-white text-[13px]">{opt.text}</span>
+                                <span className="font-bold text-cyan-300 text-[11px] shrink-0 ml-2 bg-black/50 px-2 py-0.5 rounded-full">
+                                  {percent}% ({voteCount})
+                                </span>
+                             </div>
 
-                            {msg.totalVotes > 0 && (
-                              <span className="font-bold text-cyan-300 text-[11px] shrink-0 ml-2 bg-black/40 px-2 py-0.5 rounded-full h-fit">
-                                {percent}% ({voteCount})
-                              </span>
-                            )}
+                             {/* Bottom Row: Voter Names Display */}
+                             {votersList.length > 0 && (
+                                <div className="text-[10px] text-cyan-100 mt-1.5 opacity-90 leading-tight">
+                                  <span className="font-semibold text-cyan-400">Voted by:</span> {voterNames}
+                                </div>
+                             )}
                           </div>
                         </div>
                       )
@@ -387,7 +401,6 @@ const FullFeatureChatApp = () => {
                 </div>
               )}
 
-              {/* REAL GPS LOCATION UI */}
               {msg.type === 'location' && (
                 <div className="w-full min-w-[160px] max-w-full mt-1">
                   <div className="bg-slate-700 p-3 rounded-md border border-slate-600 flex items-center gap-3">
@@ -477,7 +490,6 @@ const FullFeatureChatApp = () => {
                 <span className="text-[11px] font-semibold text-slate-300 truncate w-full text-center">Document</span>
               </div>
 
-              {/* UNLIMITED OPTIONS POLL GENERATOR */}
               <div className="flex flex-col items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity" 
                 onClick={() => {
                   setActiveMenu('');
@@ -489,7 +501,7 @@ const FullFeatureChatApp = () => {
 
                   const optionsArray = optionsStr.split(',').map(opt => ({
                     text: opt.trim(),
-                    voters: [], // We now store names in an array!
+                    voters: [],
                     votes: 0
                   })).filter(opt => opt.text.length > 0);
 
