@@ -48,13 +48,6 @@ ForEveryone = (messageIdToDelete) => {
     setMessages(prev => prev.filter(msg => msg.id !== messageIdToDelete));
     socket.emit('delete_for_all', messageIdToDelete);
   };
-  // --- DELETE LOGIC ---
-  const deleteForMe = (id) => setMessages(prev => prev.filter(m => m.id !== id));
-  
-  const deleteForEveryone = (id) => {
-    setMessages(prev => prev.filter(m => m.id !== id));
-    socket.emit('delete_for_all', id);
-  };
 
   const dummyStickers = [
     'https://cdn-icons-png.flaticon.com/512/8065/8065529.png',
