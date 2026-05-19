@@ -44,10 +44,6 @@ const FullFeatureChatApp = () => {
     'https://api.dicebear.com/7.x/adventurer/svg?seed=Mimi',
     'https://api.dicebear.com/7.x/adventurer/svg?seed=Leo'
   ];
-ForEveryone = (messageIdToDelete) => {
-    setMessages(prev => prev.filter(msg => msg.id !== messageIdToDelete));
-    socket.emit('delete_for_all', messageIdToDelete);
-  };
 
   const dummyStickers = [
     'https://cdn-icons-png.flaticon.com/512/8065/8065529.png',
