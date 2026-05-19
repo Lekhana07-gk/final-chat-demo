@@ -32,6 +32,9 @@ io.on('connection', (socket) => {
     console.log(`User disconnected: ${socket.id}`);
   });
 });
+socket.on('delete_for_all', (msgId) => {
+  socket.broadcast.emit('message_deleted_for_all', msgId);
+});
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
