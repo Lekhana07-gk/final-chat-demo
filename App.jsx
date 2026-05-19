@@ -44,14 +44,16 @@ const FullFeatureChatApp = () => {
     'https://api.dicebear.com/7.x/adventurer/svg?seed=Mimi',
     'https://api.dicebear.com/7.x/adventurer/svg?seed=Leo'
   ];
-  // --- NEW DELETE LOGIC ---
-  const deleteForMe = (messageIdToDelete) => {
-    setMessages(prev => prev.filter(msg => msg.id !== messageIdToDelete));
-  };
-
-  const deleteForEveryone = (messageIdToDelete) => {
+ForEveryone = (messageIdToDelete) => {
     setMessages(prev => prev.filter(msg => msg.id !== messageIdToDelete));
     socket.emit('delete_for_all', messageIdToDelete);
+  };
+  // --- DELETE LOGIC ---
+  const deleteForMe = (id) => setMessages(prev => prev.filter(m => m.id !== id));
+  
+  const deleteForEveryone = (id) => {
+    setMessages(prev => prev.filter(m => m.id !== id));
+    socket.emit('delete_for_all', id);
   };
 
   const dummyStickers = [
