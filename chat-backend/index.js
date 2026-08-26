@@ -1,6 +1,7 @@
 import express from 'express';
 import mongoose from 'mongoose';
 import dns from 'node:dns';
+import cors from 'cors';
 // Make sure to import your Message model!
 import Message from './models/Message.js'; 
 
@@ -9,6 +10,7 @@ dns.setServers(['8.8.8.8', '8.8.4.4']);
 
 // 2. Initialize Express
 const app = express();
+app.use(cors());
 
 // 3. Define your routes
 app.get('/api/messages', async (req, res) => {
