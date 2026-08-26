@@ -56,6 +56,15 @@ const FullFeatureChatApp = () => {
   ];
 
   useEffect(() => {
+    // Listen for incoming messages from the backend
+    socket.on('receive_message', (incomingMsg) => {
+      setMessages((prev) => [...prev, incomingMsg]);
+    });
+
+    // Clean up listener
+    return () => socket.off('receive_message');
+  }, []);
+  useEffect(() => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => {
       setIsOnline(false);
