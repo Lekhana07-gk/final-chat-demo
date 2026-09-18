@@ -59,12 +59,12 @@ const FullFeatureChatApp = () => {
 
     // Clean up listener
     return () => socket.off('receive_message');
-  }, []);
+   
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => {
       setIsOnline(false);
-      setLastActiveTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+      setLastActiveTime(new Date().toLocalTimeString([], { hour: '2-digit', minute: '2-digit' }));
     };
 
     window.addEventListener('online', handleOnline);
@@ -83,7 +83,7 @@ const FullFeatureChatApp = () => {
   useEffect(() => {
     const handleReceive = (data) => {
       if (data.type === 'poll_vote') {
-        setMessages(prev => prev.map(m => {
+        setMessages((prev) => prev.map((m) => {
           if (m.id === data.pollId && m.type === 'poll') {
             const newOptions = m.options.map((opt, idx) => {
               if (idx === data.optionIndex) {
@@ -94,17 +94,26 @@ const FullFeatureChatApp = () => {
               }
               return opt;
             });
-            const newTotal = newOptions.reduce((acc, curr) => acc + (curr.votes || 0), 0);
+            const newTotal = newOptions.reduce((acc, curr) => acc + curr.votes, 0);
             return { ...m, options: newOptions, totalVotes: newTotal };
           }
           return m;
         }));
-        return; 
+        return;
       }
 
       const incomingMsg = { ...data, sender: 'them' };
       setMessages((prev) => [...prev, incomingMsg]);
       setLastActiveTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+    };
+
+    socket.on('receive_message', handleReceive);
+    return () => socket.off('receive_message', handleReceive);
+  }, []);
+
+      const incomingMsg = { ...data, sender: 'them' };
+      setMessages((prev) => [...prev, incomingMsg]);
+      setLastActiveTime(new Date().toLocalTimeString([], { hour: '2-digit', minute: '2-digit' }));
     };
     
 
@@ -575,7 +584,7 @@ const FullFeatureChatApp = () => {
 
     </div>
   );
-};
+
 
 export default FullFeatureChatApp;
 

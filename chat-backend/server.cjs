@@ -34,6 +34,7 @@ app.use(express.json()); // Allows Express to understand JSON data
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
+    
     origin: "*", // Allows your React frontend to connect
     methods: ["GET", "POST"]
   }
