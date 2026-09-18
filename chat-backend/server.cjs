@@ -10,9 +10,14 @@ const Message = require('./models/Message.js');
 
 
 // 2. Connect to MongoDB for permanent storage
-mongoose.connect(process.env.mongodb+srv://lekhanar183_db_user:<Lekhana123>@cluster0.jczmxtn.mongodb.net/?appName=Cluster0)
+mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('✅ Successfully connected to MongoDB Atlas!'))
   .catch((err) => console.error('❌ MongoDB Connection Error:', err));
+
+
+
+
+
 
 // 3. Configure file uploads with a strict 10MB limit
 const upload = multer({
