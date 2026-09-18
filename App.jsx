@@ -55,11 +55,7 @@ const FullFeatureChatApp = () => {
     'https://cdn-icons-png.flaticon.com/512/4140/4140047.png'
   ];
 
-  useEffect(() => {
-    // Listen for incoming messages from the backend
-    socket.on('receive_message', (incomingMsg) => {
-      setMessages((prev) => [...prev, incomingMsg]);
-    });
+  
 
     // Clean up listener
     return () => socket.off('receive_message');
@@ -111,9 +107,7 @@ const FullFeatureChatApp = () => {
       setLastActiveTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
     };
     
-    socket.on('receive_message', handleReceive);
-    return () => socket.off('receive_message', handleReceive);
-  }, []);
+
 
   useEffect(() => {
     localStorage.setItem('chat_history', JSON.stringify(messages));
