@@ -10,7 +10,7 @@ const Message = require('./models/Message.js');
 
 
 // 2. Connect to MongoDB for permanent storage
-mongoose.connect('mongodb+srv://lekhanar183_db_user:SkkZWxdZdpr13Atg@cluster0.jczmxn.mongodb.net/chatApp?retryWrites=true&w=majority')
+mongoose.connect('mongodb+srv://lekhanar183_db_user:<db_password>@cluster0.jczmxtn.mongodb.net/?appName=Cluster0')
   .then(() => console.log('✅ Successfully connected to MongoDB Atlas!'))
   .catch((err) => console.error('❌ MongoDB Connection Error:', err));
 
