@@ -72,6 +72,9 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
 // Socket.io Real-Time Connection Handling
 io.on('connection', (socket) => {
   console.log('A user connected:', socket.id);
+  socket.on('delete_message_everyone', (data) => {
+    socket.broadcast.emit('message_deleted', data);
+  });
 
   socket.on('send_message', async (data) => {
     try {

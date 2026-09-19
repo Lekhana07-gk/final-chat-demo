@@ -4,7 +4,7 @@ import {
   Send, Smile, Paperclip, Video, CheckCheck, Check,
   Image as ImageIcon, MapPin, 
   Mic, Camera, FileText, BarChart2, 
-  LogOut, ShieldCheck, Sticker, PhoneMissed, X 
+  LogOut, ShieldCheck, Sticker, PhoneMissed, X, Trash2
 } from 'lucide-react';
 
 const socket = io('https://final-chat-demo.onrender.com'); 
@@ -17,6 +17,8 @@ const FullFeatureChatApp = () => {
   
   const [inputText, setInputText] = useState('');
   const [activeMenu, setActiveMenu] = useState(''); 
+  const [selectedMsgId, setSelectedMsgId] = useState(null);
+
   const [messages, setMessages] = useState(() => {
     const saved = localStorage.getItem('chat_history');
     return saved ? JSON.parse(saved) : [];
@@ -55,46 +57,7 @@ const FullFeatureChatApp = () => {
     'https://cdn-icons-png.flaticon.com/512/4140/4140047.png'
   ];
 
-  
-
-    // Clean up listener
-    useEffect(() => {
-    const handleReceive = (data) => {
-      const incomingMsg = { ...data, sender: 'them' };
-      
-      // Safety check: ensure we only add the message to state once
-      setMessages((prev) => [...prev, incomingMsg]);
-      setLastActiveTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-    };
-
-    // The nuclear fix: forcefully remove any hidden listeners before attaching the new one
-    socket.off('receive_message').on('receive_message', handleReceive);
-
-    return () => {
-      socket.off('receive_message', handleReceive);
-    };
-  }, []);
-   
-  useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => {
-      setIsOnline(false);
-      setLastActiveTime(new Date().toLocalTimeString([], { hour: '2-digit', minute: '2-digit' }));
-    };
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-    socket.on('connect', handleOnline);
-    socket.on('disconnect', handleOffline);
-
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-      socket.off('connect', handleOnline);
-      socket.off('disconnect', handleOffline);
-    };
-  }, []);
-
+  // SINGLE COMBINED LISTENER: Handles incoming messages, polls, and delete broadcasts without duplication
   useEffect(() => {
     const handleReceive = (data) => {
       if (data.type === 'poll_vote') {
@@ -119,17 +82,42 @@ const FullFeatureChatApp = () => {
 
       const incomingMsg = { ...data, sender: 'them' };
       setMessages((prev) => [...prev, incomingMsg]);
-      setLastActiveTime(new Date().toLocalTimeString([], { hour: '2-digit', minute: '2-digit' }));
+      setLastActiveTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
     };
 
+    const handleRemoteDelete = (data) => {
+      setMessages((prev) => prev.filter(m => m.id !== data.msgId));
+    };
+
+    // Forcefully remove hidden listeners before attaching
+    socket.off('receive_message').on('receive_message', handleReceive);
+    socket.off('message_deleted').on('message_deleted', handleRemoteDelete);
+
+    return () => {
+      socket.off('receive_message', handleReceive);
+      socket.off('message_deleted', handleRemoteDelete);
+    };
   }, []);
 
-      const incomingMsg = { ...data, sender: 'them' };
-      setMessages((prev) => [...prev, incomingMsg]);
-      setLastActiveTime(new Date().toLocalTimeString([], { hour: '2-digit', minute: '2-digit' }));
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => {
+      setIsOnline(false);
+      setLastActiveTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
     };
-    
 
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    socket.on('connect', handleOnline);
+    socket.on('disconnect', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+      socket.off('connect', handleOnline);
+      socket.off('disconnect', handleOffline);
+    };
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('chat_history', JSON.stringify(messages));
@@ -172,6 +160,17 @@ const FullFeatureChatApp = () => {
     setTimeout(() => {
       setMessages(prev => prev.map(m => m.id === msgId ? { ...m, status: 'read' } : m));
     }, 2500); 
+  };
+
+  const handleDeleteForMe = (msgId) => {
+    setMessages((prev) => prev.filter(m => m.id !== msgId));
+    setSelectedMsgId(null);
+  };
+
+  const handleDeleteForEveryone = (msgId) => {
+    setMessages((prev) => prev.filter(m => m.id !== msgId));
+    socket.emit('delete_message_everyone', { msgId });
+    setSelectedMsgId(null);
   };
 
   const handleVote = (pollId, optionIndex) => {
@@ -339,7 +338,7 @@ const FullFeatureChatApp = () => {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto overflow-x-hidden px-2 sm:px-4 pt-4 pb-4 w-full max-w-full box-border [&::-webkit-scrollbar]:hidden" onClick={() => setActiveMenu('')}>
+      <div className="flex-1 overflow-y-auto overflow-x-hidden px-2 sm:px-4 pt-4 pb-4 w-full max-w-full box-border [&::-webkit-scrollbar]:hidden" onClick={() => {setActiveMenu(''); setSelectedMsgId(null)}}>
         <div className="flex justify-center mb-6 w-full">
           <span className="text-[10px] font-bold text-slate-400 bg-slate-900 border border-slate-800 px-3 py-1 rounded-full shadow-sm whitespace-nowrap">
             <ShieldCheck size={12} className="inline mr-1 mb-0.5 text-cyan-500" /> End-to-End Encrypted
@@ -348,7 +347,10 @@ const FullFeatureChatApp = () => {
 
         {messages.map((msg) => (
           <div key={msg.id} className={`flex flex-col ${msg.sender === 'me' ? 'items-end' : 'items-start'} mb-4 w-full box-border`}>
-            <div className={`relative px-4 py-2.5 max-w-[95%] sm:max-w-[75%] shadow-md box-border overflow-hidden ${msg.sender === 'me' ? 'bg-gradient-to-tr from-cyan-600 to-blue-600 text-white rounded-2xl rounded-tr-sm shadow-cyan-900/20' : 'bg-slate-800 border border-slate-700 text-slate-200 rounded-2xl rounded-tl-sm'}`}>
+            <div 
+              onClick={(e) => { e.stopPropagation(); setSelectedMsgId(selectedMsgId === msg.id ? null : msg.id); }}
+              className={`relative px-4 py-2.5 max-w-[95%] sm:max-w-[75%] cursor-pointer shadow-md box-border overflow-hidden transition-all duration-200 ${selectedMsgId === msg.id ? 'ring-2 ring-red-500/50' : ''} ${msg.sender === 'me' ? 'bg-gradient-to-tr from-cyan-600 to-blue-600 text-white rounded-2xl rounded-tr-sm shadow-cyan-900/20' : 'bg-slate-800 border border-slate-700 text-slate-200 rounded-2xl rounded-tl-sm'}`}
+            >
               <div className={`text-[11px] font-bold mb-1 truncate ${msg.sender === 'me' ? 'text-cyan-100' : 'text-cyan-400'}`}>{msg.senderName}</div>
 
               {msg.type === 'text' && <div className="text-[14px] leading-relaxed whitespace-pre-wrap break-words">{msg.text}</div>}
@@ -361,7 +363,7 @@ const FullFeatureChatApp = () => {
               )}
 
               {msg.type === 'document' && (
-                <div className="mt-1 w-full min-w-[160px] bg-black/20 p-2.5 rounded-lg border border-white/10 flex items-center gap-3 hover:bg-black/30 transition cursor-pointer">
+                <div className="mt-1 w-full min-w-[160px] bg-black/20 p-2.5 rounded-lg border border-white/10 flex items-center gap-3 hover:bg-black/30 transition">
                   <div className="bg-white/20 p-2 rounded-lg shrink-0"><FileText size={20} className={msg.sender === 'me' ? 'text-white' : 'text-cyan-400'}/></div>
                   <div className="overflow-hidden flex-1">
                     <div className="font-semibold text-[13px] truncate">{msg.fileName}</div>
@@ -376,7 +378,6 @@ const FullFeatureChatApp = () => {
                 </div>
               )}
 
-              {/* PERFECTED SMART POLL UI */}
               {msg.type === 'poll' && (
                 <div className="w-full min-w-[240px] max-w-full mt-1 bg-black/30 p-3 rounded-xl border border-white/10 shadow-inner">
                   <div className="flex items-center gap-2 font-bold text-sm mb-3 text-white">
@@ -389,7 +390,6 @@ const FullFeatureChatApp = () => {
                       const voteCount = opt.votes || 0;
                       const percent = msg.totalVotes > 0 ? Math.round((voteCount / msg.totalVotes) * 100) : 0;
                       
-                      // Smart Truncation for many voters
                       let displayNameText = "";
                       if (votersList.length > 0) {
                         if (votersList.length <= 2) {
@@ -402,7 +402,7 @@ const FullFeatureChatApp = () => {
                       return (
                         <div 
                           key={idx} 
-                          onClick={() => !msg.hasVoted && handleVote(msg.id, idx)}
+                          onClick={(e) => { e.stopPropagation(); !msg.hasVoted && handleVote(msg.id, idx); }}
                           className={`relative w-full rounded-lg overflow-hidden border border-white/10 transition-all ${!msg.hasVoted ? 'cursor-pointer hover:border-cyan-400 bg-slate-800' : 'bg-slate-900 cursor-default'}`}
                         >
                           <div className="absolute top-0 left-0 h-full bg-gradient-to-r from-cyan-600 to-blue-600 opacity-30 transition-all duration-700 ease-out" style={{width: `${percent}%`}}></div>
@@ -415,7 +415,6 @@ const FullFeatureChatApp = () => {
                                 </span>
                              </div>
 
-                             {/* Safely handles overflowing names */}
                              {votersList.length > 0 && (
                                 <div className="text-[10px] text-cyan-100 mt-1.5 opacity-90 leading-tight block w-full overflow-hidden text-ellipsis whitespace-nowrap pr-2">
                                   <span className="font-semibold text-cyan-400 mr-1">Voted by:</span>{displayNameText}
@@ -430,30 +429,8 @@ const FullFeatureChatApp = () => {
                 </div>
               )}
 
-              {msg.type === 'location' && (
-                <div className="w-full min-w-[160px] max-w-full mt-1">
-                  <div className="bg-slate-700 p-3 rounded-md border border-slate-600 flex items-center gap-3">
-                    <MapPin size={24} className="text-emerald-400 shrink-0" />
-                    <div className="flex-1 overflow-hidden">
-                      <div className="font-bold text-[13px] text-white">Live Location</div>
-                      <div className="text-[10px] text-slate-400 truncate">Lat: {msg.lat}, Lng: {msg.lng}</div>
-                    </div>
-                  </div>
-                  <a href={msg.mapLink} target="_blank" rel="noopener noreferrer" 
-                     className={`mt-2 block w-full text-center py-1.5 rounded-md text-sm font-bold truncate transition-colors ${msg.sender === 'me' ? 'bg-white/20 hover:bg-white/30 text-white' : 'bg-cyan-600 hover:bg-cyan-500 text-white'}`}>
-                    Open in Google Maps
-                  </a>
-                </div>
-              )}
-
-              {msg.type === 'feature' && (
-                <div className="flex items-center gap-2 mt-1 bg-black/20 p-1.5 rounded-md pr-3 w-full max-w-full overflow-hidden border border-white/5">
-                  <div className="p-1.5 bg-white/20 rounded-full shrink-0">{msg.icon}</div>
-                  <span className="font-semibold text-[13px] truncate">{msg.label}</span>
-                </div>
-              )}
-
-              <div className={`flex items-center justify-end gap-1 mt-1 text-[10px] font-medium shrink-0 ${msg.sender === 'me' ? 'text-cyan-100' : 'text-slate-400'}`}>
+              {/* Timestamp & Delivery Status */}
+              <div className={`text-[9px] mt-1.5 flex items-center gap-1 justify-end ${msg.sender === 'me' ? 'text-cyan-200' : 'text-slate-400'}`}>
                 {msg.time}
                 {msg.sender === 'me' && (
                   <span className="ml-1 flex">
@@ -463,12 +440,27 @@ const FullFeatureChatApp = () => {
                   </span>
                 )}
               </div>
+
+              {/* Delete Menu Overlay */}
+              {selectedMsgId === msg.id && (
+                <div className="mt-3 pt-3 border-t border-white/20 flex flex-col gap-2 animation-fade-in">
+                  <button onClick={(e) => { e.stopPropagation(); handleDeleteForMe(msg.id); }} className="flex items-center gap-2 text-[12px] bg-slate-900/50 hover:bg-slate-900/80 text-white px-3 py-1.5 rounded-lg transition-colors">
+                    <Trash2 size={14} className="text-slate-300"/> Delete for me
+                  </button>
+                  {msg.sender === 'me' && (
+                    <button onClick={(e) => { e.stopPropagation(); handleDeleteForEveryone(msg.id); }} className="flex items-center gap-2 text-[12px] bg-red-500/20 hover:bg-red-500/40 text-red-200 px-3 py-1.5 rounded-lg transition-colors">
+                      <Trash2 size={14} className="text-red-400"/> Delete for everyone
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         ))}
         <div ref={chatEndRef} className="h-2 w-full" />
       </div>
 
+      {/* Input Footer Area */}
       <div className="bg-slate-950 p-3 relative w-full max-w-full shrink-0 box-border border-t border-slate-800">
         
         {activeMenu === 'emoji' && (
@@ -597,8 +589,6 @@ const FullFeatureChatApp = () => {
 
     </div>
   );
-
+};
 
 export default FullFeatureChatApp;
-
-//pushing to vercel
