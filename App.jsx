@@ -61,12 +61,18 @@ const FullFeatureChatApp = () => {
     useEffect(() => {
     const handleReceive = (data) => {
       const incomingMsg = { ...data, sender: 'them' };
+      
+      // Safety check: ensure we only add the message to state once
       setMessages((prev) => [...prev, incomingMsg]);
       setLastActiveTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
     };
 
-    socket.on('receive_message', handleReceive);
-    return () => socket.off('receive_message', handleReceive);
+    // The nuclear fix: forcefully remove any hidden listeners before attaching the new one
+    socket.off('receive_message').on('receive_message', handleReceive);
+
+    return () => {
+      socket.off('receive_message', handleReceive);
+    };
   }, []);
    
   useEffect(() => {
@@ -113,7 +119,7 @@ const FullFeatureChatApp = () => {
 
       const incomingMsg = { ...data, sender: 'them' };
       setMessages((prev) => [...prev, incomingMsg]);
-      setLastActiveTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+      setLastActiveTime(new Date().toLocalTimeString([], { hour: '2-digit', minute: '2-digit' }));
     };
 
   }, []);
