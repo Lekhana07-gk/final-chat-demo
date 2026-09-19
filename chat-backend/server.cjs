@@ -36,18 +36,19 @@ const io = new Server(server, {
 
 // MongoDB Connection
 const MONGODB_URI = process.env.MONGODB_URI || "your_mongodb_connection_string_here";
-mongoose.connect(process.env.MONGODB_URI)
+mongoose.connect(MONGODB_URI)
   .then(() => console.log("Connected to MongoDB Atlas"))
   .catch((err) => console.error("MongoDB connection error:", err));
 
-// Message Schema & Model
+// FIX: Schema set to strict: false so it doesn't strip time, id, or senderName
 const messageSchema = new mongoose.Schema({
-  sender: String,
+  id: Number,
+  senderName: String,
+  time: String,
   text: String,
   type: { type: String, default: 'text' },
-  fileUrl: String,
-  timestamp: { type: String, default: () => new Date().toLocaleTimeString() }
-});
+  fileUrl: String
+}, { strict: false }); 
 const Message = mongoose.model('Message', messageSchema);
 
 // REST Endpoint to fetch message history
@@ -72,26 +73,30 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
 // Socket.io Real-Time Connection Handling
 io.on('connection', (socket) => {
   console.log('A user connected:', socket.id);
-  socket.on('delete_message_everyone', (data) => {
-    socket.broadcast.emit('message_deleted', data);
-  });
 
   socket.on('send_message', async (data) => {
     try {
-      // Save message to MongoDB
-      const newMessage = new Message({
-        sender: data.sender || 'Anonymous',
-        text: data.text || '',
-        type: data.type || 'text',
-        fileUrl: data.fileUrl || '',
-        timestamp: data.timestamp || new Date().toLocaleTimeString()
-      });
-      await newMessage.save();
+      // FIX: Broadcast EXACTLY what the frontend sent (keeps name, time, and ID intact)
+      socket.broadcast.emit('receive_message', data);
 
-      // Broadcast message to all other connected clients
-      socket.broadcast.emit('receive_message', newMessage);
+      // Save message to MongoDB
+      const newMessage = new Message(data);
+      await newMessage.save();
     } catch (err) {
       console.error("Error saving message:", err);
+    }
+  });
+
+  // FIX: Make "Delete for Everyone" work across all tabs and delete from database
+  socket.on('delete_message_everyone', async (data) => {
+    try {
+      // Broadcast delete command to other users
+      socket.broadcast.emit('message_deleted', data);
+      
+      // Permanently remove from database
+      await Message.deleteOne({ id: data.msgId });
+    } catch (err) {
+      console.error("Error deleting message:", err);
     }
   });
 
