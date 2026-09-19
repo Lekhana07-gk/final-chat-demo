@@ -58,7 +58,16 @@ const FullFeatureChatApp = () => {
   
 
     // Clean up listener
-    return () => socket.off('receive_message');
+    useEffect(() => {
+    const handleReceive = (data) => {
+      const incomingMsg = { ...data, sender: 'them' };
+      setMessages((prev) => [...prev, incomingMsg]);
+      setLastActiveTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+    };
+
+    socket.on('receive_message', handleReceive);
+    return () => socket.off('receive_message', handleReceive);
+  }, []);
    
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
