@@ -1,119 +1,103 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
-const cors = require('cors');
 const mongoose = require('mongoose');
+const cors = require('cors');
 const multer = require('multer');
+const path = require('path');
 
-// Import your Database Model
-const Message = require('./models/Message.js');
-
-
-// 2. Connect to MongoDB for permanent storage
-mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log('✅ Successfully connected to MongoDB Atlas!'))
-  .catch((err) => console.error('❌ MongoDB Connection Error:', err));
-
-
-
-
-
-
-// 3. Configure file uploads with a strict 10MB limit
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
-});
-
-// 4. Initialize Express and Middleware
 const app = express();
-app.use(cors());
-app.use(express.json()); // Allows Express to understand JSON data
-
-// 5. Create the HTTP and WebSocket Server
 const server = http.createServer(app);
+
+// Middleware
+app.use(cors({ origin: "*", credentials: true }));
+app.use(express.json());
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Configure Multer for file/media uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'uploads/');
+  },
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + '-' + file.originalname);
+  }
+});
+const upload = multer({ storage });
+
+// Socket.io Setup with CORS
 const io = new Server(server, {
   cors: {
-    
-    origin: "*", // Allows your React frontend to connect
-    methods: ["GET", "POST"]
+    origin: "*",
+    methods: ["GET", "POST"],
+    credentials: true
   }
 });
 
-// 6. Handle WebSocket (Real-time) Connections
-io.on('connection', (socket) => {
-  console.log(`User connected: ${socket.id}`);
+// MongoDB Connection
+const MONGODB_URI = process.env.MONGODB_URI || "your_mongodb_connection_string_here";
+mongoose.connect(process.env.MONGODB_URI)
+  .then(() => console.log("Connected to MongoDB Atlas"))
+  .catch((err) => console.error("MongoDB connection error:", err));
 
-  // When a user sends a new message
-  socket.on('send_message', async (data) => {
-    console.log("Message received on server:", data.text);
-    
-    try {
-      // Save the message permanently to MongoDB
-      await Message.create(data);
-      
-      // Broadcast that exact message out to EVERYONE else
-      socket.broadcast.emit('receive_message', data);
-    } catch (error) {
-      console.error("Failed to save message:", error);
-    }
-  });
-
-  // When a user deletes a message
-  socket.on('delete_message', async ({ msgId, deleteType, username }) => {
-    try {
-      if (deleteType === 'everyone') {
-        // Mark as deleted for everyone in MongoDB
-        await Message.findOneAndUpdate({ id: msgId }, { isDeletedForEveryone: true });
-        
-        // Tell EVERYONE connected to update their screen
-        io.emit('message_deleted', { msgId, type: 'everyone' });
-      } 
-      else if (deleteType === 'me') {
-        // Add this user to the hidden list in MongoDB
-        await Message.findOneAndUpdate({ id: msgId }, { $push: { deletedBy: username } });
-        
-        // Tell ONLY this specific user to update their screen
-        socket.emit('message_deleted', { msgId, type: 'me', username });
-      }
-    } catch (error) {
-      console.error("Error deleting message:", error);
-    }
-  });
-
-  // When a user disconnects
-  socket.on('disconnect', () => {
-    console.log(`User disconnected: ${socket.id}`);
-  });
+// Message Schema & Model
+const messageSchema = new mongoose.Schema({
+  sender: String,
+  text: String,
+  type: { type: String, default: 'text' },
+  fileUrl: String,
+  timestamp: { type: String, default: () => new Date().toLocaleTimeString() }
 });
+const Message = mongoose.model('Message', messageSchema);
 
-// 7. Express API Routes
-
-// Route to load old messages when a user logs in
+// REST Endpoint to fetch message history
 app.get('/api/messages', async (req, res) => {
   try {
-    const messages = await Message.find().sort({ createdAt: 1 });
+    const messages = await Message.find().sort({ _id: 1 }).limit(100);
     res.json(messages);
-  } catch (error) {
+  } catch (err) {
     res.status(500).json({ error: "Failed to fetch messages" });
   }
 });
 
-// Route to handle 10MB file sharing
-app.post('/api/upload', upload.single('mediaFile'), (req, res) => {
-  if (!req.file) return res.status(400).json({ error: "No file uploaded" });
-  
-  // The file is temporarily stored in memory (req.file.buffer)
-  console.log(`File received: ${req.file.originalname} (${req.file.size} bytes)`);
-  
-  // Next Step: Add cloud upload logic (e.g., AWS S3 or Cloudinary) here 
-  // and send the generated URL back to the frontend to save in the chat.
-  
-  res.json({ message: "File received successfully", fileDetails: req.file });
+// REST Endpoint for file uploads
+app.post('/api/upload', upload.single('file'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: "No file uploaded" });
+  }
+  const fileUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
+  res.json({ fileUrl });
 });
 
-// 8. Start the Server
-const PORT = process.env.PORT || 3000;
+// Socket.io Real-Time Connection Handling
+io.on('connection', (socket) => {
+  console.log('A user connected:', socket.id);
+
+  socket.on('send_message', async (data) => {
+    try {
+      // Save message to MongoDB
+      const newMessage = new Message({
+        sender: data.sender || 'Anonymous',
+        text: data.text || '',
+        type: data.type || 'text',
+        fileUrl: data.fileUrl || '',
+        timestamp: data.timestamp || new Date().toLocaleTimeString()
+      });
+      await newMessage.save();
+
+      // Broadcast message to all other connected clients
+      socket.broadcast.emit('receive_message', newMessage);
+    } catch (err) {
+      console.error("Error saving message:", err);
+    }
+  });
+
+  socket.on('disconnect', () => {
+    console.log('User disconnected:', socket.id);
+  });
+});
+
+const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
-  console.log(`🚀 Real-time server running on http://localhost:${PORT}`);
+  console.log(`Server is running on port ${PORT}`);
 });
