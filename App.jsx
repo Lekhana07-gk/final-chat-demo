@@ -116,8 +116,6 @@ const FullFeatureChatApp = () => {
       setLastActiveTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
     };
 
-    socket.on('receive_message', handleReceive);
-    return () => socket.off('receive_message', handleReceive);
   }, []);
 
       const incomingMsg = { ...data, sender: 'them' };
