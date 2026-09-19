@@ -124,6 +124,27 @@ const FullFeatureChatApp = () => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, activeMenu]);
 
+  // -------- PASTE THIS NEW BLOCK HERE --------
+  // Fetch chat history from MongoDB when a user joins
+  useEffect(() => {
+    if (isJoined) {
+      fetch('https://final-chat-demo.onrender.com/api/messages')
+        .then((res) => res.json())
+        .then((data) => {
+          if (data && data.length > 0) {
+            // Check the database to see which messages belong to you vs them
+            const formattedMessages = data.map(msg => ({
+              ...msg,
+              sender: msg.senderName === username ? 'me' : 'them'
+            }));
+            setMessages(formattedMessages);
+          }
+        })
+        .catch((err) => console.error('Error fetching MongoDB history:', err));
+    }
+  }, [isJoined, username]);
+  // -------------------------------------------
+  
   const handleJoin = (e) => {
     e.preventDefault();
     if (username.trim().length > 0) {
